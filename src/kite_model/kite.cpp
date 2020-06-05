@@ -358,14 +358,14 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
     /** Aerodynamic Forces and Moments in aerodynamic (wind) frame **/
     /** ---------------------------------------------------------- **/
 //    SX q_ba = kmath::quat_multiply(kmath::T2quat(alpha), kmath::T2quat(-beta));
-//    SX w_ = w;
+    SX w_ = w;
 
     /* XFLR5 gives coefficients in stability frame
      * To get from stability axis to body, rotate by aoa */
     SX q_bs = kmath::T2quat(alpha);
     /* Body rates in stability frame (pitch rate is equal in both frames) */
-    SX q_sb = kmath::quat_inverse(q_bs);
-    SX w_ = kmath::quat_transform(q_sb, w);
+//    SX q_sb = kmath::quat_inverse(q_bs);
+//    SX w_ = kmath::quat_transform(q_sb, w);
 
     SX dyn_press = 0.5 * rho * Va * Va;
     SX CL = CL0 + CLa * alpha + CLq * c / (2.0 * Va) * w_(1) + CLde * dE;
@@ -378,7 +378,7 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
                              b / (2.0 * Va) * (CYp * w_(0) + CYr * w_(2)) +
                              CYdr * dR);
 
-    SX Faero = SX::vertcat({-DRAG, SF, -LIFT});
+    SX s_Faero = SX::vertcat({-DRAG, SF, -LIFT});
 
     /** Moments about x, y, z axes: L, M, N **/
     SX L = dyn_press * S * b * (Cl0 + Clb * beta +
@@ -393,14 +393,14 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
                                 b / (2.0 * Va) * (Cnp * w_(0) + Cnr * w_(2)) +
                                 Cnda * dA + Cndr * dR);
 
-    SX Maero = SX::vertcat({L, M, N});
+    SX s_Maero = SX::vertcat({L, M, N});
 
     /** Aerodynamic Forces and Moments in body frame **/
 //    b_F_aero = kmath::quat_transform(q_ba, Faero);
-    b_F_aero = kmath::quat_transform(q_bs, Faero);
+    b_F_aero = kmath::quat_transform(q_bs, s_Faero);
 
 //    auto b_Maero = kmath::quat_transform(q_ba, Maero);
-    auto b_Maero = kmath::quat_transform(q_bs, Maero);
+    auto b_Maero = kmath::quat_transform(q_bs, s_Maero);
 //    auto b_Maero =  Maero;
 
     /** ---------------------------------------- **/

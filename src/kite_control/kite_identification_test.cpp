@@ -546,12 +546,12 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
 
 
         /* Pitchrate */
-        paramList.emplace_back("aero_rate_pitch", "CLq", kiteProps.Aerodynamics.CLq, -relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_pitch", "CLq", kiteProps.Aerodynamics.CLq, -0, 0);
         paramList.emplace_back("aero_rate_pitch", "Cmq", kiteProps.Aerodynamics.Cmq, -relLwBound, relUpBound);
 
 
         /* Elevator */
-        paramList.emplace_back("aero_ctrl_elev", "CLde", kiteProps.Aerodynamics.CLde, -relLwBound, relUpBound);
+        paramList.emplace_back("aero_ctrl_elev", "CLde", kiteProps.Aerodynamics.CLde, -0, 0);
         paramList.emplace_back("aero_ctrl_elev", "Cmde", kiteProps.Aerodynamics.Cmde, -relLwBound, relUpBound);
 
         // 9 longitudinal parameters
@@ -600,12 +600,12 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
 
 
         /* Rollrate */
-        paramList.emplace_back("aero_rate_roll", "CYp", kiteProps.Aerodynamics.CYp, -relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_roll", "CYp", kiteProps.Aerodynamics.CYp, 0,0); //-relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_roll", "Clp", kiteProps.Aerodynamics.Clp, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_roll", "Cnp", kiteProps.Aerodynamics.Cnp, -relLwBound, relUpBound);
 
         /* Yawrate */
-        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, -relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, 0,0); //-relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_yaw", "Clr", kiteProps.Aerodynamics.Clr, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_yaw", "Cnr", kiteProps.Aerodynamics.Cnr, -relLwBound, relUpBound);
 
@@ -1023,20 +1023,20 @@ int main() {
     const int dimXa = dimX + dimU; // augmented states = states + controls
 
     /// 1. Data, number of data points and segments ///
-    const std::string identManeuver = "identPitch";
-    const int DATA_POINTS = 91;
-    const int poly_order = 3;
-    const int num_segments = 30;
+//    const std::string identManeuver = "identPitch";
+//    const int DATA_POINTS = 91;
+//    const int poly_order = 3;
+//    const int num_segments = 30;
 
 //    const std::string identManeuver = "identRoll";
 //    const int DATA_POINTS = 88;
 //    const int poly_order = 3;
 //    const int num_segments = 29;
 
-//    const std::string identManeuver = "identYaw";
-//    const int DATA_POINTS = 88;
-//    const int poly_order = 3;
-//    const int num_segments = 29;
+    const std::string identManeuver = "identYaw";
+    const int DATA_POINTS = 88;
+    const int poly_order = 3;
+    const int num_segments = 29;
 
 //    const std::string identManeuver = "mission_ID_PYR";
 //    const int DATA_POINTS = 325;
@@ -1050,16 +1050,16 @@ int main() {
 
     /// 2. Identification mode ///
     /* pitch / longitudinal */
-    const kite_utils::IdentMode identMode = kite_utils::IdentMode::PITCH;
-    const int dimP = 9;
+//    const kite_utils::IdentMode identMode = kite_utils::IdentMode::PITCH;
+//    const int dimP = 9;
 
     /* roll / lateral */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::ROLL;
 //    const int dimP = 11;
 
     /* yaw / lateral */
-//    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YAW;
-//    const int dimP = 12;
+    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YAW;
+    const int dimP = 12;
 
     /* yaw-roll */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YR;
