@@ -224,9 +224,9 @@ public:
                   RUD &Cndr,
 
 
-                  ELV &TC_dE,
-                  RUD &TC_dR,
-                  AIL &TC_dA,
+                  GEN &TC_dE,
+                  GEN &TC_dR,
+                  GEN &TC_dA,
 
                   casadi::SX &v, casadi::SX &w, casadi::SX &r, casadi::SX &q,
                   casadi::SX &F_thr0, casadi::SX &dE, casadi::SX &dR, casadi::SX &dA,

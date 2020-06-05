@@ -554,10 +554,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_elev", "CLde", kiteProps.Aerodynamics.CLde, -relLwBound, relUpBound);
         paramList.emplace_back("aero_ctrl_elev", "Cmde", kiteProps.Aerodynamics.Cmde, -relLwBound, relUpBound);
 
-
-        /* Actuator dynamics */
-        paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -0, 0);
-        // 10 longitudinal parameters
+        // 9 longitudinal parameters
 
     } else if (identMode == kite_utils::IdentMode::ROLL) {
 
@@ -587,10 +584,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_ail", "Clda", kiteProps.Aerodynamics.Clda, -relLwBound, relUpBound);
         paramList.emplace_back("aero_ctrl_ail", "Cnda", kiteProps.Aerodynamics.Cnda, -0, 0);
 
-        /* Actuator dynamics */
-        paramList.emplace_back("actuators", "TC_dA", kiteProps.Actuators.TC_dA, -0, 0); //-relLwBound, relUpBound);
-        // 12 lateral/aileron parameters
-
+        // 11 lateral/aileron parameters
 
     } else if (identMode == kite_utils::IdentMode::YAW) {
 
@@ -621,10 +615,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_rud", "Cldr", kiteProps.Aerodynamics.Cldr, -relLwBound, relUpBound);
         paramList.emplace_back("aero_ctrl_rud", "Cndr", kiteProps.Aerodynamics.Cndr, -relLwBound, relUpBound);
 
-
-        /* Actuator dynamics */
-        paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -0, 0);
-        // 13 lateral/rudder parameters
+        // 12 lateral/rudder parameters
 
     } else if (identMode == kite_utils::IdentMode::COMPLETE) {
 
@@ -680,10 +671,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_rud", "Cldr", kiteProps.Aerodynamics.Cldr, -relBound, relBound);
         paramList.emplace_back("aero_ctrl_rud", "Cndr", kiteProps.Aerodynamics.Cndr, -relBound, relBound);
 
-        /* Actuator dynamics */
-        paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -relBound, relBound);
-        paramList.emplace_back("actuators", "TC_dA", kiteProps.Actuators.TC_dA, -relBound, relBound);
-        // 30 complete parameters
+        // 24 complete parameters
 
     } else if (identMode == kite_utils::IdentMode::YR) {
 
@@ -718,10 +706,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_rud", "Cldr", kiteProps.Aerodynamics.Cldr, -relLwBound, relUpBound);
         paramList.emplace_back("aero_ctrl_rud", "Cndr", kiteProps.Aerodynamics.Cndr, -relLwBound, relUpBound);
 
-        /* Actuator dynamics */
-        paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -relLwBound, relUpBound);
-        paramList.emplace_back("actuators", "TC_dA", kiteProps.Actuators.TC_dA, -relLwBound, relUpBound);
-        // 16 lateral/aileron parameters
+        // 14 lateral/aileron parameters
 
     } else if (identMode == kite_utils::IdentMode::YRb) {
 
@@ -751,8 +736,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_ctrl_rud", "Cldr", kiteProps.Aerodynamics.Cldr, 0, 0);
         paramList.emplace_back("aero_ctrl_rud", "Cndr", kiteProps.Aerodynamics.Cndr, 0, 0);
 
-        paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -relLwBound, relUpBound);
-        // 15 lateral/aileron parameters
+        // 14 lateral/aileron parameters
     }
 
 
@@ -1067,20 +1051,20 @@ int main() {
     /// 2. Identification mode ///
     /* pitch / longitudinal */
     const kite_utils::IdentMode identMode = kite_utils::IdentMode::PITCH;
-    const int dimP = 10;
+    const int dimP = 9;
 
     /* roll / lateral */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::ROLL;
-//    const int dimP = 12;
+//    const int dimP = 11;
 
     /* yaw / lateral */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YAW;
-//    const int dimP = 13;
+//    const int dimP = 12;
 
     /* yaw-roll */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YR;
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YRb;
-//    const int dimp = 16;
+//    const int dimp = 14;
 
 
     const bool useEulerAnglesForCostFunction = true;
