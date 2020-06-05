@@ -181,7 +181,7 @@ public:
                   GEN &b, GEN &c, GEN &AR, GEN &S,
                   GEN &Mass, GEN &Ixx, GEN &Iyy, GEN &Izz, GEN &Ixz,
 
-                  DLO &e_oswald,
+                  GEN &e_oswald,
                   DLO &CD0,
 
 

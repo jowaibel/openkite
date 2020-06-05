@@ -248,7 +248,7 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
                             GEN &b, GEN &c, GEN &AR, GEN &S,
                             GEN &Mass, GEN &Ixx, GEN &Iyy, GEN &Izz, GEN &Ixz,
 
-                            DLO &e_oswald,
+                            GEN &e_oswald,
                             DLO &CD0,
 
 
@@ -740,8 +740,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
         /** ------------------------------- **/
         /** Aerodynamic parameters          **/
         /** ------------------------------- **/
-        //double e_oswald = kiteProps.Aerodynamics.e_oswald;
-        SX e_oswald = SX::sym("e_oswald");
+        double e_oswald = kiteProps.Aerodynamics.e_oswald;
         SX CD0 = SX::sym("CD0");
 
         /* AOA */
@@ -801,7 +800,6 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
         double TC_dA = kiteProps.Actuators.TC_dA;
 
         params = SX::vertcat({params,
-                              e_oswald,
                               CD0,
 
                               CL0,
@@ -817,7 +815,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                               Cmde,
 
                               TC_dE
-                             }); // 11 longitudinal parameters
+                             }); // 10 longitudinal parameters
 
         /* Wind, GENeral, Dynamic LOngitudinal, Dynamic LAteral, AILeron, ELeVator, RUDder
          *        W, GEN,   DLO, DLA,   AIL,    ELV, RUD*/
@@ -1106,8 +1104,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
         /** ------------------------------- **/
         /** Aerodynamic parameters          **/
         /** ------------------------------- **/
-//        double e_oswald = kiteProps.Aerodynamics.e_oswald;
-        SX e_oswald = SX::sym("e_oswald");
+        double e_oswald = kiteProps.Aerodynamics.e_oswald;
         SX CD0 = SX::sym("CD0");
 
         /* AOA */
@@ -1166,7 +1163,6 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
         SX TC_dA = SX::sym("TC_dA");
 
         params = SX::vertcat({params,
-                              e_oswald,
                               CD0,
 
                               CL0,

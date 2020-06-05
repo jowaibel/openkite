@@ -535,7 +535,6 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         const double relUpBound = 0.7;
         const double relLwBound = 0.9;
 
-        paramList.emplace_back("aero", "e_oswald", kiteProps.Aerodynamics.e_oswald, -0,-0); //0.96, 0.96, true);
         paramList.emplace_back("aero", "CD0", kiteProps.Aerodynamics.CD0, -relLwBound, relUpBound);
 
         /* AOA */
@@ -558,7 +557,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
 
         /* Actuator dynamics */
         paramList.emplace_back("actuators", "TC_dER", kiteProps.Actuators.TC_dER, -0, 0);
-        // 11 longitudinal parameters
+        // 10 longitudinal parameters
 
     } else if (identMode == kite_utils::IdentMode::ROLL) {
 
@@ -1040,20 +1039,20 @@ int main() {
     const int dimXa = dimX + dimU; // augmented states = states + controls
 
     /// 1. Data, number of data points and segments ///
-//    const std::string identManeuver = "identPitch";
-//    const int DATA_POINTS = 91;
-//    const int poly_order = 3;
-//    const int num_segments = 30;
+    const std::string identManeuver = "identPitch";
+    const int DATA_POINTS = 91;
+    const int poly_order = 3;
+    const int num_segments = 30;
 
 //    const std::string identManeuver = "identRoll";
 //    const int DATA_POINTS = 88;
 //    const int poly_order = 3;
 //    const int num_segments = 29;
 
-    const std::string identManeuver = "identYaw";
-    const int DATA_POINTS = 88;
-    const int poly_order = 3;
-    const int num_segments = 29;
+//    const std::string identManeuver = "identYaw";
+//    const int DATA_POINTS = 88;
+//    const int poly_order = 3;
+//    const int num_segments = 29;
 
 //    const std::string identManeuver = "mission_ID_PYR";
 //    const int DATA_POINTS = 325;
@@ -1067,16 +1066,16 @@ int main() {
 
     /// 2. Identification mode ///
     /* pitch / longitudinal */
-//    const kite_utils::IdentMode identMode = kite_utils::IdentMode::PITCH;
-//    const int dimP = 11;
+    const kite_utils::IdentMode identMode = kite_utils::IdentMode::PITCH;
+    const int dimP = 10;
 
     /* roll / lateral */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::ROLL;
 //    const int dimP = 12;
 
     /* yaw / lateral */
-    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YAW;
-    const int dimP = 13;
+//    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YAW;
+//    const int dimP = 13;
 
     /* yaw-roll */
 //    const kite_utils::IdentMode identMode = kite_utils::IdentMode::YR;
