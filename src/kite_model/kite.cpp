@@ -304,7 +304,8 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
                             SX &F_thr0_dot, SX &dE_dot, SX &dR_dot, SX &dA_dot,
 
                             SX &Va_pitot, SX &Va, SX &alpha, SX &beta,
-                            SX &b_F_aero, SX &b_F_thrust, bool teth_ON, SX &b_F_tether) {
+                            SX &b_F_aero, SX &b_F_thrust, bool teth_ON, SX &b_F_tether,
+                            SX &debugSX) {
     /** Start of model ============================================================================================= **/
     /* Aircraft Inertia Matrix */
     auto J = SX::diag(SX::vertcat({Ixx, Iyy, Izz}));
@@ -316,7 +317,7 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
     w = SX::sym("w", 3); // Angular velocity (body frame) [rad/s]
     r = SX::sym("r", 3); // Position of the CoG (geodetic (NED) frame) [m]
     q = SX::sym("q", 4); // Rotation from geodetic (NED) to body frame. Transforms a body vector to ned. = q_gb
-    SX q_bg = kmath::quat_inverse(q);
+    SX q_bn = kmath::quat_inverse(q);
 
     /** Control commands **/
     F_thr0_cmd = SX::sym("F_thr0_cmd");
@@ -332,8 +333,8 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
 
     /** Aerodynamic (Wind) frame **/
     /* Wind velocity in body frame */
-    SX g_vW = windSpeed * SX::vertcat({-cos(windFrom), -sin(windFrom), 0});
-    SX b_vW = kmath::quat_transform(q_bg, g_vW);
+    SX n_vW = windSpeed * SX::vertcat({-cos(windFrom), -sin(windFrom), 0});
+    SX b_vW = kmath::quat_transform(q_bn, n_vW);
 
     /* Apparent velocity in body frame, airspeed */
     SX b_va = v - b_vW;
@@ -355,59 +356,53 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
     Va_pitot = sens_va(0);
 
     /** ---------------------------------------------------------- **/
-    /** Aerodynamic Forces and Moments in aerodynamic (wind) frame **/
+    /** Aerodynamic Forces and Moments **/
     /** ---------------------------------------------------------- **/
-//    SX q_ba = kmath::quat_multiply(kmath::T2quat(alpha), kmath::T2quat(-beta));
-    SX w_ = w;
-
-    /* XFLR5 gives coefficients in stability frame
-     * To get from stability axis to body, rotate by aoa */
-    SX q_bs = kmath::T2quat(alpha);
-    /* Body rates in stability frame (pitch rate is equal in both frames) */
-//    SX q_sb = kmath::quat_inverse(q_bs);
-//    SX w_ = kmath::quat_transform(q_sb, w);
+    SX q_ba = kmath::quat_multiply(kmath::T2quat(alpha), kmath::T3quat(-beta)); // (aerodynamic frame)
+//    SX q_bs = kmath::T2quat(alpha); // (stability frame, XFLR)
 
     SX dyn_press = 0.5 * rho * Va * Va;
-    SX CL = CL0 + CLa * alpha + CLq * c / (2.0 * Va) * w_(1) + CLde * dE;
+    SX CL = CL0 + CLa * alpha + CLq * c / (2.0 * Va) * w(1) + CLde * dE;
     SX CD = (CD0 + CL * CL / (pi * e_oswald * AR));
 
     /** Forces in x, y, z directions: -Drag, Side force, -Lift **/
     SX LIFT = dyn_press * S * CL;
     SX DRAG = dyn_press * S * CD;
     SX SF = dyn_press * S * (CYb * beta +
-                             b / (2.0 * Va) * (CYp * w_(0) + CYr * w_(2)) +
+                             b / (2.0 * Va) * (CYp * w(0) + CYr * w(2)) +
                              CYdr * dR);
 
-    SX s_Faero = SX::vertcat({-DRAG, SF, -LIFT});
+    SX Faero = SX::vertcat({-DRAG, SF, -LIFT});
 
     /** Moments about x, y, z axes: L, M, N **/
     SX L = dyn_press * S * b * (Cl0 + Clb * beta +
-                                b / (2.0 * Va) * (Clp * w_(0) + Clr * w_(2)) +
+                                b / (2.0 * Va) * (Clp * w(0) + Clr * w(2)) +
                                 Clda * dA + Cldr * dR);
 
     SX M = dyn_press * S * c * (Cm0 + Cma * alpha +
-                                c / (2.0 * Va) * Cmq * w_(1) +
+                                c / (2.0 * Va) * Cmq * w(1) +
                                 Cmde * dE);
 
     SX N = dyn_press * S * b * (Cn0 + Cnb * beta +
-                                b / (2.0 * Va) * (Cnp * w_(0) + Cnr * w_(2)) +
+                                b / (2.0 * Va) * (Cnp * w(0) + Cnr * w(2)) +
                                 Cnda * dA + Cndr * dR);
 
-    SX s_Maero = SX::vertcat({L, M, N});
+    SX Maero = SX::vertcat({L, M, N});
 
     /** Aerodynamic Forces and Moments in body frame **/
-//    b_F_aero = kmath::quat_transform(q_ba, Faero);
-    b_F_aero = kmath::quat_transform(q_bs, s_Faero);
+    b_F_aero = kmath::quat_transform(q_ba, Faero);
+//    b_F_aero = kmath::quat_transform(q_bs, Faero);
+//    debugSX = b_F_aero;
 
-//    auto b_Maero = kmath::quat_transform(q_ba, Maero);
-    auto b_Maero = kmath::quat_transform(q_bs, s_Maero);
+    auto b_Maero = kmath::quat_transform(q_ba, Maero);
+//    auto b_Maero = kmath::quat_transform(q_bs, Maero);
 //    auto b_Maero =  Maero;
 
     /** ---------------------------------------- **/
     /** Gravitation, Thrust, Tether (body frame) **/
     /** ---------------------------------------- **/
     /** Gravitational acceleration **/
-    SX b_g = kmath::quat_transform(q_bg, SX::vertcat({0, 0, g}));
+    SX b_g = kmath::quat_transform(q_bn, SX::vertcat({0, 0, g}));
 
     /** Propeller thrust **/
     const double p1 = -0.014700129;
@@ -430,30 +425,32 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
         /* Weight_tether */
         //SX decl = SX::atan(SX::norm_2(r(Slice(0, 2))) / -r(2));
         //SX g_Wteth = 0.5 * (1 + cos(decl)) * tethLen * tethMassPerMeter * SX::vertcat({0, 0, g}); // probably invalid
-        SX g_Wteth = tethLen * tethMassPerMeter * SX::vertcat({0, 0, g});
-        SX b_Wteth = kmath::quat_transform(q_bg, g_Wteth);
+        SX n_Wteth = tethLen * tethMassPerMeter * SX::vertcat({0, 0, g});
+        SX b_Wteth = kmath::quat_transform(q_bn, n_Wteth);
 
         /* Drag_tether */
         SX q_ba = kmath::quat_multiply(kmath::T2quat(alpha), kmath::T3quat(-beta));
 
-        SX lat = SX::atan2(-r(0), SX::norm_2(r(Slice(1, 3))));
-        SX lon = SX::atan2(-r(1), -r(2));
-        SX q_lg = kmath::quat_multiply(kmath::T2quat(-lat), kmath::T1quat(lon));
-        SX q_gl = kmath::quat_inverse(q_lg);
-        SX q_lb = kmath::quat_multiply(q_lg, q);
+        SX lat = SX::atan2(r(0), SX::norm_2(r(Slice(1, 3))));
+        SX lon = SX::atan2(r(1), -r(2));
+        SX q_ln = kmath::quat_multiply(kmath::T2quat(-lat), kmath::T1quat(lon));
+        SX q_nl = kmath::quat_inverse(q_ln);
+        SX q_lb = kmath::quat_multiply(q_ln, q);
 
         SX l_va = kmath::quat_transform(q_lb, b_va);
         SX l_va_proj = SX::vertcat({l_va(0), l_va(1), 0});
 
-        SX q_bl = kmath::quat_multiply(q_bg, q_gl);
-        SX f_va_proj = kmath::quat_transform(q_bl, l_va_proj);
+        SX q_bl = kmath::quat_multiply(q_bn, q_nl);
+        SX b_va_proj = kmath::quat_transform(q_bl, l_va_proj);
 
-        SX b_Dteth = 0.125 * tethDensity * -f_va_proj * SX::norm_2(f_va_proj) * c_orth * tethDiameter * tethLen;
+        SX b_Dteth = 0.125 * tethDensity * -b_va_proj * SX::norm_2(b_va_proj) * c_orth * tethDiameter * tethLen;
 
         /* LonForce_tether */
         SX tethElongation = (dist - tethLen) / tethLen;
-        SX g_lonFteth = -r / dist * SX::fmax(0, (tethE * tethCrossArea) * (tethElongation + 0.005));
-        SX b_lonFteth = kmath::quat_transform(q_bg, g_lonFteth);
+//        SX n_lonFteth = -r / dist * SX::fmax(0, (tethE * tethCrossArea) * (tethElongation + 0.005));
+        SX n_lonFteth = -r / dist * 5.0;
+        SX b_lonFteth = kmath::quat_transform(q_bn, n_lonFteth);
+
         b_F_tether = b_lonFteth + b_Dteth + b_Wteth;
     } else {
         b_F_tether = SX::vertcat({0, 0, 0});
@@ -475,7 +472,7 @@ void KiteDynamics::getModel(GEN &g, GEN &rho,
     /** Kinematic Equations (geodetic frame) **/
     /** ------------------------------------ **/
     /** Translation: Aircraft position derivative **/
-    r_dot = kmath::quat_transform(q, v);                            // q = q_gb, v (body frame)
+    r_dot = kmath::quat_transform(q, v);                            // q = q_nb, v (body frame)
 
     /** Rotation: Aircraft attitude derivative **/
     double lambda = -5;
@@ -601,6 +598,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
     SX v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot;
     SX Va_pitot, Va, alpha, beta;
     SX b_F_aero, b_F_thrust, b_F_tether;
+    SX debugSX;
 
     double windFrom = kiteProps.atmosphere.WindFrom;
     double windSpeed = kiteProps.atmosphere.WindSpeed;
@@ -637,7 +635,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
             v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
 
             Va_pitot, Va, alpha, beta,
-            b_F_aero, b_F_thrust, teth_ON, b_F_tether);
+            b_F_aero, b_F_thrust, teth_ON, b_F_tether,
+            debugSX);
 
     SX control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
 
@@ -653,6 +652,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
     Function specNongravForce_func = Function("spec_nongrav_force", {state, control_cmd},
                                               {(b_F_aero + b_F_thrust + b_F_tether) / Mass});
     Function specTethForce_func = Function("specTethForce", {state, control_cmd}, {b_F_tether / Mass});
+
+    Function debug_func = Function("debugSX", {state, control_cmd}, {debugSX});
 
     /** compute dynamics state Jacobian */
     SX d_jacobian = SX::jacobian(dynamics, state);
@@ -689,6 +690,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
     this->NumAeroValues = aeroValues_func;
     this->NumSpecNongravForce = specNongravForce_func;
     this->NumSpecTethForce = specTethForce_func;
+    this->NumDebug = debug_func;
     this->NumJacobian = dyn_jac;
 
     /** return integrator function */
@@ -737,6 +739,7 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
     SX v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot;
     SX Va_pitot, Va, alpha, beta;
     SX b_F_aero, b_F_thrust, b_F_tether;
+    SX debugSX;
 
     SX params;
     SX control_cmd;
@@ -847,7 +850,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                 v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
 
                 Va_pitot, Va, alpha, beta,
-                b_F_aero, b_F_thrust, false, b_F_tether);
+                b_F_aero, b_F_thrust, false, b_F_tether,
+                debugSX);
 
         control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
 
@@ -960,7 +964,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                 F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd,
                 v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
                 Va_pitot, Va, alpha, beta,
-                b_F_aero, b_F_thrust, false, b_F_tether);
+                b_F_aero, b_F_thrust, false, b_F_tether,
+                debugSX);
 
         control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
 
@@ -1074,7 +1079,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                 v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
 
                 Va_pitot, Va, alpha, beta,
-                b_F_aero, b_F_thrust, false, b_F_tether);
+                b_F_aero, b_F_thrust, false, b_F_tether,
+                debugSX);
 
         control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
 
@@ -1208,7 +1214,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                 v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
 
                 Va_pitot, Va, alpha, beta,
-                b_F_aero, b_F_thrust, false, b_F_tether);
+                b_F_aero, b_F_thrust, false, b_F_tether,
+                debugSX);
 
         control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
 
@@ -1330,7 +1337,8 @@ KiteDynamics::KiteDynamics(const KiteProperties &kiteProps, const AlgorithmPrope
                 v_dot, w_dot, r_dot, q_dot, F_thr0_dot, dE_dot, dR_dot, dA_dot,
 
                 Va_pitot, Va, alpha, beta,
-                b_F_aero, b_F_thrust, false, b_F_tether);
+                b_F_aero, b_F_thrust, false, b_F_tether,
+                debugSX);
 
         control_cmd = SX::vertcat({F_thr0_cmd, dE_cmd, dR_cmd, dA_cmd});
     }

@@ -170,6 +170,7 @@ public:
     casadi::Function getNumericAeroValues() { return this->NumAeroValues; }
     casadi::Function getNumericSpecNongravForce() { return this->NumSpecNongravForce; }
     casadi::Function getNumericSpecTethForce() { return this->NumSpecTethForce; }
+    casadi::Function getNumericDebug() { return this->NumDebug; }
     casadi::Function getNumericIntegrator() { return this->NumIntegrator; }
     casadi::Function getNumericJacobian() { return this->NumJacobian; }
     casadi::Function getAeroDynamicForces() { return this->AeroDynamics; }
@@ -234,7 +235,8 @@ public:
                   casadi::SX &v_dot, casadi::SX &w_dot, casadi::SX &r_dot, casadi::SX &q_dot,
                   casadi::SX &F_thr0_dot, casadi::SX &dE_dot, casadi::SX &dR_dot, casadi::SX &dA_dot,
                   casadi::SX &Va_pitot, casadi::SX &Va, casadi::SX &alpha, casadi::SX &beta,
-                  casadi::SX &b_F_aero, casadi::SX &b_F_thrust, bool teth_ON, casadi::SX &b_F_tether);
+                  casadi::SX &b_F_aero, casadi::SX &b_F_thrust, bool teth_ON, casadi::SX &b_F_tether,
+                  casadi::SX &debugSX);
 
 private:
     //state variables
@@ -260,6 +262,8 @@ private:
     casadi::Function NumSpecNongravForce;
     //numerical tether force evaluation
     casadi::Function NumSpecTethForce;
+    //numerical debug value(s)
+    casadi::Function NumDebug;
     //numerical integral evaluation
     casadi::Function NumIntegrator;
     //numerical jacobian evaluation

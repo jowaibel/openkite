@@ -66,6 +66,10 @@ void Simulator::simulate() {
     if (static_cast<double>(control_cmds(0)) < 0.0)
         control_cmds(0) = 0.0;
 
+    state = m_odeSolver->solve(state, control_cmds, dt);
+    //std::cout << "length : " << DM::norm_2(state(Slice(6,9))) << "\n";
+    //std::cout << "State: " << state << "\n";
+
     /* Get pitot airspeed */
     DM airspeed_evaluated = m_NumericAirspeedMeas(DMVector{state})[0];
     Va_pitot = airspeed_evaluated.nonzeros()[0];
@@ -89,9 +93,10 @@ void Simulator::simulate() {
         specTethForce = specTethForce_evaluated_vect;
     }
 
-    state = m_odeSolver->solve(state, control_cmds, dt);
-    //std::cout << "length : " << DM::norm_2(state(Slice(6,9))) << "\n";
-    //std::cout << "State: " << state << "\n";
+    /* Get specific nongravitational force before solving (altering) the state */
+    DM debug_evaluated = m_NumericDebug(DMVector{state, control_cmds})[0];
+    std::vector<double> debug_evaluated_vect = debug_evaluated.nonzeros();
+//    std::cout << "[Simulator]: debug: " << debug_evaluated_vect << "\n";
 }
 
 void Simulator::publish_state(const ros::Time &sim_time) {
@@ -222,6 +227,7 @@ int main(int argc, char **argv) {
     simulator.setNumericAeroValues(kite.getNumericAeroValues());
     simulator.setNumericSpecNongravForce(kite.getNumericSpecNongravForce());
     simulator.setNumericSpecTethForce(kite.getNumericSpecTethForce());
+    simulator.setNumericDebug(kite.getNumericDebug());
 
     ros::Rate loop_rate(node_rate);
 

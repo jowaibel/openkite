@@ -30,6 +30,8 @@ public:
     void setNumericAeroValues(const casadi::Function &_NumericAeroValues) {m_NumericAeroValues = _NumericAeroValues;}
     void setNumericSpecNongravForce(const casadi::Function &_NumericSpecNongravForce) {m_NumericSpecNongravForce = _NumericSpecNongravForce;}
     void setNumericSpecTethForce(const casadi::Function &_NumericSpecTethForce) {m_NumericSpecTethForce = _NumericSpecTethForce;}
+    void setNumericDebug(const casadi::Function &_NumericDebug) {m_NumericDebug = _NumericDebug;}
+
 
     bool sim_tether;
 
@@ -40,6 +42,7 @@ private:
     casadi::Function m_NumericAeroValues;
     casadi::Function m_NumericSpecNongravForce;
     casadi::Function m_NumericSpecTethForce;
+    casadi::Function m_NumericDebug;
 
     ros::Subscriber controlcmd_sub;
     ros::Publisher  state_pub;

@@ -562,7 +562,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         const double relLwBound = 0.9;
 
         /* Sideslip */
-        paramList.emplace_back("aero_ss", "CYb", kiteProps.Aerodynamics.CYb, -0, 0);
+        paramList.emplace_back("aero_ss", "CYb", kiteProps.Aerodynamics.CYb, -relLwBound, relUpBound);
 
         paramList.emplace_back("aero_ss", "Clb", kiteProps.Aerodynamics.Clb, -relLwBound, relUpBound);
 
@@ -575,7 +575,7 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
         paramList.emplace_back("aero_rate_roll", "Cnp", kiteProps.Aerodynamics.Cnp, -0, 0);
 
         /* Yawrate */
-        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, -relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, -0, 0);
         paramList.emplace_back("aero_rate_yaw", "Clr", kiteProps.Aerodynamics.Clr, -0, 0);
         paramList.emplace_back("aero_rate_yaw", "Cnr", kiteProps.Aerodynamics.Cnr, -0, 0);
 
@@ -600,12 +600,12 @@ void setup_optimizationParameters(const KiteProperties &kiteProps,
 
 
         /* Rollrate */
-        paramList.emplace_back("aero_rate_roll", "CYp", kiteProps.Aerodynamics.CYp, 0,0); //-relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_roll", "CYp", kiteProps.Aerodynamics.CYp, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_roll", "Clp", kiteProps.Aerodynamics.Clp, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_roll", "Cnp", kiteProps.Aerodynamics.Cnp, -relLwBound, relUpBound);
 
         /* Yawrate */
-        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, 0,0); //-relLwBound, relUpBound);
+        paramList.emplace_back("aero_rate_yaw", "CYr", kiteProps.Aerodynamics.CYr, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_yaw", "Clr", kiteProps.Aerodynamics.Clr, -relLwBound, relUpBound);
         paramList.emplace_back("aero_rate_yaw", "Cnr", kiteProps.Aerodynamics.Cnr, -relLwBound, relUpBound);
 
