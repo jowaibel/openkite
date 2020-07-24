@@ -1,7 +1,7 @@
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
 
-#include "kite.h"
+#include "kite.hpp"
 #include "integrator.h"
 #include "ros/ros.h"
 #include "sensor_msgs/MultiDOFJointState.h"
@@ -26,8 +26,10 @@ public:
     bool is_initialized(){return initialized;}
     void initialize(const casadi::DM &_init_value){state = _init_value; initialized = true;}
 
-    void setNumericAirspeedMeas(const casadi::Function &_NumericAirspeedMeas) {m_NumericAirspeedMeas = _NumericAirspeedMeas;}
-    void setNumericAeroValues(const casadi::Function &_NumericAeroValues) {m_NumericAeroValues = _NumericAeroValues;}
+    void setNumericVa(const casadi::Function &_NumericVa) {m_NumericVa = _NumericVa;}
+    void setNumericAlpha(const casadi::Function &_NumericAlpha) {m_NumericAlpha = _NumericAlpha;}
+    void setNumericBeta(const casadi::Function &_NumericBeta) {m_NumericBeta = _NumericBeta;}
+    void setNumericVaPitot(const casadi::Function &_NumericVaPitot) {m_NumericVa_pitot = _NumericVaPitot;}
     void setNumericSpecNongravForce(const casadi::Function &_NumericSpecNongravForce) {m_NumericSpecNongravForce = _NumericSpecNongravForce;}
     void setNumericSpecTethForce(const casadi::Function &_NumericSpecTethForce) {m_NumericSpecTethForce = _NumericSpecTethForce;}
     void setNumericDebug(const casadi::Function &_NumericDebug) {m_NumericDebug = _NumericDebug;}
@@ -38,8 +40,10 @@ public:
 private:
     std::shared_ptr<ros::NodeHandle> m_nh;
     std::shared_ptr<ODESolver> m_odeSolver;
-    casadi::Function m_NumericAirspeedMeas;
-    casadi::Function m_NumericAeroValues;
+    casadi::Function m_NumericVa;
+    casadi::Function m_NumericAlpha;
+    casadi::Function m_NumericBeta;
+    casadi::Function m_NumericVa_pitot;
     casadi::Function m_NumericSpecNongravForce;
     casadi::Function m_NumericSpecTethForce;
     casadi::Function m_NumericDebug;

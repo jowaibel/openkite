@@ -7,7 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake)
 
 find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs message_generation
                                         geometry_msgs sensor_msgs roslint tf2_ros
-                                        visualization_msgs serial)
+                                        visualization_msgs serial kite_model)
 find_package(VRPN REQUIRED)
 find_package(CASADI REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -72,9 +72,9 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    CATKIN_DEPENDS message_runtime
-   INCLUDE_DIRS src/kite_model src/kite_control src/kite_estimation src/nodes
+   INCLUDE_DIRS src/kite_control src/kite_estimation src/nodes
 #  LIBRARIES openkite
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS kite_model
 #  DEPENDS system_lib
 )
 
@@ -99,7 +99,6 @@ add_subdirectory(src/kite_control)
 add_subdirectory(src/kite_estimation)
 add_subdirectory(src/kite_math)
 add_subdirectory(src/nodes)
-
 #############
 ## Install ##
 #############

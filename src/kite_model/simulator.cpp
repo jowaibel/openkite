@@ -2,14 +2,6 @@
 
 using namespace casadi;
 
-//void Simulator::controlCallback(const openkite::aircraft_controls::ConstPtr &msg)
-//{
-//    controls(0) = msg->thrust;
-//    controls(1) = msg->elevator;
-//    controls(2) = msg->rudder;
-//    controls(3) = msg->ailerons;
-//}
-
 void Simulator::controlCallback(const sensor_msgs::JoyConstPtr &msg) {
     control_cmds(0) = msg->axes[0]; // Thrust
     control_cmds(1) = msg->axes[1]; // Elevator
@@ -67,26 +59,22 @@ void Simulator::simulate() {
         control_cmds(0) = 0.0;
 
     state = m_odeSolver->solve(state, control_cmds, dt);
-    //std::cout << "length : " << DM::norm_2(state(Slice(6,9))) << "\n";
-    //std::cout << "State: " << state << "\n";
 
     /* Get pitot airspeed */
-    DM airspeed_evaluated = m_NumericAirspeedMeas(DMVector{state})[0];
-    Va_pitot = airspeed_evaluated.nonzeros()[0];
+    Va_pitot = m_NumericVa_pitot(DMVector{state, control_cmds})[0].nonzeros()[0];
 
     /* Get aero values (Va, alpha, beta) */
-    DM aeroValues_evaluated = m_NumericAeroValues(DMVector{state})[0];
-    std::vector<double> aeroValues_evaluated_vect = aeroValues_evaluated.nonzeros();
-    Va = aeroValues_evaluated_vect[0];
-    alpha = aeroValues_evaluated_vect[1];
-    beta = aeroValues_evaluated_vect[2];
+    Va = m_NumericVa(DMVector{state, control_cmds})[0].nonzeros()[0];
+    alpha = m_NumericAlpha(DMVector{state, control_cmds})[0].nonzeros()[0];
+    beta = m_NumericBeta(DMVector{state, control_cmds})[0].nonzeros()[0];
 
     /* Get specific nongravitational force before solving (altering) the state */
     DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_cmds})[0];
     std::vector<double> specNongravForce_evaluated_vect = specNongravForce_evaluated.nonzeros();
     specNongravForce = specNongravForce_evaluated_vect;
 
-    if (sim_tether) {
+    if (sim_tether)
+    {
         /* Get tether force vector */
         DM specTethForce_evaluated = m_NumericSpecTethForce(DMVector{state, control_cmds})[0];
         std::vector<double> specTethForce_evaluated_vect = specTethForce_evaluated.nonzeros();
@@ -96,7 +84,6 @@ void Simulator::simulate() {
     /* Get specific nongravitational force before solving (altering) the state */
     DM debug_evaluated = m_NumericDebug(DMVector{state, control_cmds})[0];
     std::vector<double> debug_evaluated_vect = debug_evaluated.nonzeros();
-//    std::cout << "[Simulator]: debug: " << debug_evaluated_vect << "\n";
 }
 
 void Simulator::publish_state(const ros::Time &sim_time) {
@@ -178,26 +165,34 @@ int main(int argc, char **argv) {
     std::string kite_params_file;
     n.param<std::string>("kiteparams_path", kite_params_file, "_kiteparams_.yaml");
     std::cout << "Simulator: Using kite parameters from: " << kite_params_file << "\n";
-    KiteProperties kite_props = kite_utils::LoadProperties(kite_params_file);
 
     double windFrom_deg{180};
+    double windSpeed{0};
     n.param<double>("windFrom_deg", windFrom_deg, 180.0);
-    kite_props.atmosphere.WindFrom = windFrom_deg * M_PI / 180.0;
-    n.param<double>("windSpeed", kite_props.atmosphere.WindSpeed, 0.0);
-    kite_props.atmosphere.airDensity = 1.1589; // Standard atmosphere at 468 meters
+    n.param<double>("windSpeed", windSpeed, 0.0);
+    const double airDensity = 1.1589; // Standard atmosphere at 468 meters
 
-    std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << kite_props.atmosphere.WindSpeed << " m/s.\n";
+    std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s.\n";
+    const double vWind_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
+    const double vWind_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
 
     bool simulate_tether;
     n.param<bool>("simulate_tether", simulate_tether, false);
     if (simulate_tether)
         std::cout << "[Simulator]: Tether ON\n";
 
-    AlgorithmProperties algo_props;
-    algo_props.Integrator = RK4;
-    algo_props.sampling_time = 0.02;
-    KiteDynamics kite = KiteDynamics(kite_props, algo_props, simulate_tether);
-//    MinimalKiteDynamics kite = MinimalKiteDynamics(kite_props, algo_props);
+    /** Setup static, dynamic, and optimizable parameters ---------------------------------------------------------- **/
+    /* Static parameters: Set {name, value} pair once that will be constant afterwards */
+    const std::map<std::string, double> staticParams = {{"air_density", airDensity},
+                                                        {"v_wind_N",    vWind_N},
+                                                        {"v_wind_E",    vWind_E}};
+
+    /* Dynamic parameters: Set parameter names that will be modifiable before running an optimization  */
+    const std::vector<std::string> dynParamNames = {}; //{"v_wind_N", "v_wind_E"};
+
+    /** Kite Dynamics ---------------------------------------------------------------------------------------------- **/
+    /* Construct kite dynamics for forward integration (for initial guess) */
+    KiteDynamics kiteDynamics = AugKiteDynamics(kite_params_file, simulate_tether, staticParams);
 
     int broadcast_state;
     n.param<int>("broadcast_state", broadcast_state, 1);
@@ -216,18 +211,19 @@ int main(int argc, char **argv) {
     Dict params({{"tf",     dt},
                  {"tol",    1e-6},
                  {"method", CVODES}});
-    Function ode = kite.getNumericDynamics();
-    auto dynamics = kite.getAeroDynamicForces();
+    Function ode = kiteDynamics.getNumericDynamics();
 
     ODESolver odeSolver(ode, params);
 
     Simulator simulator(odeSolver, n);
     simulator.sim_tether = simulate_tether;
-    simulator.setNumericAirspeedMeas(kite.getNumericAirspeedMeas());
-    simulator.setNumericAeroValues(kite.getNumericAeroValues());
-    simulator.setNumericSpecNongravForce(kite.getNumericSpecNongravForce());
-    simulator.setNumericSpecTethForce(kite.getNumericSpecTethForce());
-    simulator.setNumericDebug(kite.getNumericDebug());
+    simulator.setNumericVa(kiteDynamics.getNumericOutput("Va"));
+    simulator.setNumericAlpha(kiteDynamics.getNumericOutput("alpha"));
+    simulator.setNumericBeta(kiteDynamics.getNumericOutput("beta"));
+    simulator.setNumericVaPitot(kiteDynamics.getNumericOutput("Va_pitot"));
+    simulator.setNumericSpecNongravForce(kiteDynamics.getNumericOutput("spec_nongrav_force"));
+    simulator.setNumericSpecTethForce(kiteDynamics.getNumericOutput("spec_tether_force"));
+    simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX"));
 
     ros::Rate loop_rate(node_rate);
 
