@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
     /** Kite Dynamics ---------------------------------------------------------------------------------------------- **/
     /* Construct kite dynamics for forward integration (for initial guess) */
-    KiteDynamics kiteDynamics = AugKiteDynamics(kite_params_file, simulate_tether, staticParams);
+    kite_model::KiteDynamics kiteDynamics = kite_model::AugKiteDynamics(kite_params_file, simulate_tether, staticParams);
 
     int broadcast_state;
     n.param<int>("broadcast_state", broadcast_state, 1);
