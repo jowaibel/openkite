@@ -1,7 +1,7 @@
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
 
-#include "kite.hpp"
+#include "kite_model/kite.hpp"
 #include "integrator.h"
 #include "ros/ros.h"
 #include "sensor_msgs/MultiDOFJointState.h"
