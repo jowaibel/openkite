@@ -24,15 +24,16 @@ Simulator::Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh) {
     /** initialize subscribers and publishers */
     m_nh->param<bool>("simulate_tether", sim_tether, false);
 
-    std::vector<double> initial_value;
-    m_nh->getParam("init_state", initial_value);
+    std::vector<double> init_state;
+    m_nh->getParam("init_state", init_state);
     /* Init values for Actuator positions */
-    initial_value.emplace_back(0);
-    initial_value.emplace_back(0);
-    initial_value.emplace_back(0);
-    initial_value.emplace_back(0);
-    initialize(DM(initial_value));
-    ROS_INFO_STREAM("Simulator initialized at: " << initial_value);
+//    init_state = {15, 0, 0,  0, 0, 0,  20, 5, -120, 0, 0, -135*M_PI/180.0}; // use Euler angle attitude representation
+    init_state.emplace_back(0);
+    init_state.emplace_back(0);
+    init_state.emplace_back(0);
+    init_state.emplace_back(0);
+    initialize(DM(init_state));
+    ROS_INFO_STREAM("Simulator initialized at: " << init_state);
 
     //pose_pub  = m_nh->advertise<geometry_msgs::PoseStamped>("/sim/kite_pose", 100);
     state_pub = m_nh->advertise<sensor_msgs::MultiDOFJointState>("/sim/kite_state", 1);
@@ -60,13 +61,14 @@ void Simulator::simulate() {
 
     state = m_odeSolver->solve(state, control_cmds, dt);
 
+    DM dummy;
     /* Get pitot airspeed */
-    Va_pitot = m_NumericVa_pitot(DMVector{state, control_cmds})[0].nonzeros()[0];
+    Va_pitot = m_NumericVa_pitot(DMVector{state, dummy})[0].nonzeros()[0];
 
     /* Get aero values (Va, alpha, beta) */
-    Va = m_NumericVa(DMVector{state, control_cmds})[0].nonzeros()[0];
-    alpha = m_NumericAlpha(DMVector{state, control_cmds})[0].nonzeros()[0];
-    beta = m_NumericBeta(DMVector{state, control_cmds})[0].nonzeros()[0];
+    Va = m_NumericVa(DMVector{state, dummy})[0].nonzeros()[0];
+    alpha = m_NumericAlpha(DMVector{state, dummy})[0].nonzeros()[0];
+    beta = m_NumericBeta(DMVector{state, dummy})[0].nonzeros()[0];
 
     /* Get specific nongravitational force before solving (altering) the state */
     DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_cmds})[0];
@@ -90,6 +92,12 @@ void Simulator::publish_state(const ros::Time &sim_time) {
     /** State message */
     std::vector<double> state_vec = state.nonzeros();
 
+    std::vector<double> quat_vec = state(casadi::Slice(9, 13)).nonzeros(); // state contains quaternion
+//    casadi::DM euler = state(casadi::Slice(9, 12)); // state contains euler angles
+//    casadi::DM q_bn = kite_model::euler2quat(euler);
+//    casadi::DM q_nb = polymath::quat_inverse(q_bn);
+//    std::vector<double> quat_vec = q_nb.nonzeros();
+
     msg_state.header.stamp = sim_time;
 
     msg_state.twist[0].linear.x = state_vec[0];
@@ -104,10 +112,10 @@ void Simulator::publish_state(const ros::Time &sim_time) {
     msg_state.transforms[0].translation.y = state_vec[7];
     msg_state.transforms[0].translation.z = state_vec[8];
 
-    msg_state.transforms[0].rotation.w = state_vec[9];
-    msg_state.transforms[0].rotation.x = state_vec[10];
-    msg_state.transforms[0].rotation.y = state_vec[11];
-    msg_state.transforms[0].rotation.z = state_vec[12];
+    msg_state.transforms[0].rotation.w = quat_vec[0];
+    msg_state.transforms[0].rotation.x = quat_vec[1];
+    msg_state.transforms[0].rotation.y = quat_vec[2];
+    msg_state.transforms[0].rotation.z = quat_vec[3];
 
     /* Using wrench 0 as for acceleration, as measured by IMU (spec nongravitational forces) */
     msg_state.wrench[0].force.x = specNongravForce[0];
@@ -139,20 +147,26 @@ void Simulator::publish_state(const ros::Time &sim_time) {
 }
 
 void Simulator::publish_pose(const ros::Time &sim_time) {
-    DM pose = getPose();
-    std::vector<double> pose_vec = pose.nonzeros();
+
+    std::vector<double> pos_vec = state(casadi::Slice(6, 9)).nonzeros();
+
+    std::vector<double> quat_vec = state(casadi::Slice(9, 13)).nonzeros(); // state contains quaternion
+//    casadi::DM euler = state(casadi::Slice(9, 12)); // state contains euler angles
+//    casadi::DM q_bn = kite_model::euler2quat(euler);
+//    casadi::DM q_nb = polymath::quat_inverse(q_bn);
+//    std::vector<double> quat_vec = q_nb.nonzeros();
 
     geometry_msgs::PoseStamped msg_pose;
     msg_pose.header.stamp = sim_time;
 
-    msg_pose.pose.position.x = pose_vec[0];
-    msg_pose.pose.position.y = pose_vec[1];
-    msg_pose.pose.position.z = pose_vec[2];
+    msg_pose.pose.position.x = pos_vec[0];
+    msg_pose.pose.position.y = pos_vec[1];
+    msg_pose.pose.position.z = pos_vec[2];
 
-    msg_pose.pose.orientation.w = pose_vec[3];
-    msg_pose.pose.orientation.x = pose_vec[4];
-    msg_pose.pose.orientation.y = pose_vec[5];
-    msg_pose.pose.orientation.z = pose_vec[6];
+    msg_pose.pose.orientation.w = quat_vec[0];
+    msg_pose.pose.orientation.x = quat_vec[1];
+    msg_pose.pose.orientation.y = quat_vec[2];
+    msg_pose.pose.orientation.z = quat_vec[3];
 
     pose_pub.publish(msg_pose);
 }
@@ -192,7 +206,10 @@ int main(int argc, char **argv) {
 
     /** Kite Dynamics ---------------------------------------------------------------------------------------------- **/
     /* Construct kite dynamics for forward integration (for initial guess) */
-    kite_model::KiteDynamics kiteDynamics = kite_model::AugKiteDynamics(kite_params_file, simulate_tether, staticParams);
+    kite_model::KiteDynamics kiteDynamics = kite_model::AugKiteDynamics(kite_params_file, kite_model::AttQuat,
+                                                                        staticParams, dynParamNames, {},
+                                                                        simulate_tether);
+    Function ode = kiteDynamics.getNumericDynamics();
 
     int broadcast_state;
     n.param<int>("broadcast_state", broadcast_state, 1);
@@ -211,8 +228,6 @@ int main(int argc, char **argv) {
     Dict params({{"tf",     dt},
                  {"tol",    1e-6},
                  {"method", CVODES}});
-    Function ode = kiteDynamics.getNumericDynamics();
-
     ODESolver odeSolver(ode, params);
 
     Simulator simulator(odeSolver, n);
