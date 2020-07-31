@@ -177,7 +177,13 @@ int main(int argc, char **argv) {
 
     /** create a kite object */
     std::string kite_params_file;
-    n.param<std::string>("kiteparams_path", kite_params_file, "_kiteparams_.yaml");
+    n.param<std::string>("kiteparams", kite_params_file, "kiteparams");
+    if (kite_params_file.at(0) == '/') ; /* Full path given, don't modify */
+    else /* Add path to kite_model files */
+        kite_params_file = ros::package::getPath("kite_model") + "/config/" + kite_params_file;
+    if (kite_params_file.find(".yaml") == std::string::npos) /* Add .yaml ending */
+        kite_params_file.append(".yaml");
+
     std::cout << "Simulator: Using kite parameters from: " << kite_params_file << "\n";
 
     double windFrom_deg{180};

@@ -4,6 +4,7 @@
 #include "kite_model/kite.hpp"
 #include "integrator.h"
 #include "ros/ros.h"
+#include <ros/package.h>
 #include "sensor_msgs/MultiDOFJointState.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3Stamped.h"

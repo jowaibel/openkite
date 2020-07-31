@@ -5,7 +5,7 @@ set(CMAKE_MODULE_PATH /usr/local/share/cmake/Modules/)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake)
 
 
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs message_generation
+find_package(catkin REQUIRED COMPONENTS roscpp roslib rospy std_msgs message_generation
                                         geometry_msgs sensor_msgs roslint tf2_ros
                                         visualization_msgs serial kite_model)
 find_package(VRPN REQUIRED)
@@ -74,7 +74,7 @@ catkin_package(
    CATKIN_DEPENDS message_runtime
    INCLUDE_DIRS src/kite_control src/kite_estimation src/nodes
 #  LIBRARIES openkite
-  CATKIN_DEPENDS kite_model
+  CATKIN_DEPENDS kite_model roslib
 #  DEPENDS system_lib
 )
 
