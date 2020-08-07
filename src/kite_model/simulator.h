@@ -2,7 +2,6 @@
 #define SIMULATOR_H
 
 #include "kite_model/kite.hpp"
-#include "integrator.h"
 #include "ros/ros.h"
 #include <ros/package.h>
 #include "sensor_msgs/MultiDOFJointState.h"
@@ -10,6 +9,7 @@
 #include "geometry_msgs/Vector3Stamped.h"
 #include "openkite/aircraft_controls.h"
 #include <sensor_msgs/Joy.h>
+#include <polympc/integration/integrator.h>
 
 class Simulator
 {

@@ -38,6 +38,7 @@
   <build_depend>visualization_msgs</build_depend>
   <build_depend>actionlib</build_depend>
   <build_depend>kite_model</build_depend>
+  <build_depend>polympc-ros</build_depend>
 
   <!-- Use buildtool_depend for build tool packages: -->
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
@@ -48,6 +49,7 @@
   <run_depend>visualization_msgs</run_depend>
   <run_depend>actionlib</run_depend>
   <run_depend>kite_model</run_depend>
+  <run_depend>polympc-ros</run_depend>
 
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
