@@ -11,6 +11,86 @@
 #include <sensor_msgs/Joy.h>
 #include <polympc/integration/integrator.h>
 
+class DiscreteTurbulenceGenerator
+{
+public:
+    DiscreteTurbulenceGenerator() = default;
+    void init(const double &avg_wind_speed, const double &avg_wind_from)
+    {
+        V_avg = avg_wind_speed;
+        psiw = avg_wind_from;
+        std::srand(static_cast<unsigned>(time(nullptr)));
+    }
+    void update(const double &t, const double &height, double &vWind_N, double &vWind_E) {
+
+        std::cout << "t: " << t << "\n";
+
+        double dpsiw = 0;//(std::rand() % 20 - 10) /10 * M_PI / 180.0;
+        psiw = psiw + dpsiw;
+
+        double V = V0;
+        if (gust_armed)
+        {
+            std::cout << "gust_armed\n";
+            if (t_gust < t and t <= t_gust_end)
+            {
+                if (V_gust >= V_avg)
+                    V = V0 + std::abs(V_gust - V_avg) / 2.0 * (1 - cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)));
+                else
+                    V = V0 + std::abs(V_gust - V_avg) / 2.0 * (cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)) - 1);
+                std::cout << "V: " << V << "\n";
+            }
+            else if (t > t_gust_end)
+            {
+                V0 = V_gust;
+                gust_armed = false;
+            }
+        }
+        else
+        {
+            std::cout << "Determining next gust\n";
+            /* If there is no gust, determine next one */
+            /* Next gust will be in [0 ... 5] s */
+            t_gust = (std::rand() % 50 + t) / 10;
+            double d_gust = (std::rand() % 50 + 10) / 10;
+            t_gust_end = t_gust + d_gust;
+            double a_gust_max = 1;
+            double dV_gust_max = d_gust * a_gust_max;
+            double dV_gust = std::rand() % static_cast<int>(2 * dV_gust_max * 10) - 10 * dV_gust_max;
+            V_gust = std::max(V0 + dV_gust / 10.0, 0.0);
+            gust_armed = true;
+
+            std::cout << "t_gust: " << t_gust << "\n"
+                      << "d_gust: " << d_gust << "\n"
+                      << "t_gust_end: " << t_gust_end << "\n"
+                      << "dV_gust_max: " << dV_gust_max << "\n"
+                      << "dV_gust: " << dV_gust << "\n"
+                      << "V_gust: " << V_gust << "\n";
+        }
+        double V_cz = V * std::pow(height / 3.0, 0.1);
+        vWind_N = V_cz * -cos(psiw);
+        vWind_E = V_cz * -sin(psiw);
+
+//        std::cout << "V: " << V << "\n"
+//                  << "V_cz: " << V_cz << "\n"
+//                  << "dpsi: " << dpsiw * 180.0 / M_PI << " deg\n"
+//                  << "psi: " << psiw * 180.0 / M_PI << " deg\n";
+        double stophere = 1;
+    }
+
+private:
+    bool gust_armed{false};
+    double V_avg{1};
+    double V_max{2 * V_avg};
+    double psiw{0};
+    double V0{V_avg};
+
+    double V_gust{V_max};
+    double t_gust{0};
+    double t_gust_end{t_gust};
+
+};
+
 class Simulator
 {
 public:
@@ -37,6 +117,10 @@ public:
 
 
     bool sim_tether;
+    double          wind_from_mean{0};
+    double          wind_speed_mean{0};
+    double          sim_dt;
+    DiscreteTurbulenceGenerator discreteTurbulenceGenerator;
 
 private:
     std::shared_ptr<ros::NodeHandle> m_nh;
@@ -64,8 +148,11 @@ private:
     std::vector<double> specNongravForce{0,0,0};
     std::vector<double> specTethForce{0,0,0};
 
+    double          sim_time{0};
+
     void controlCallback(const sensor_msgs::JoyConstPtr &msg);
     double sim_rate;
+
     sensor_msgs::MultiDOFJointState msg_state;
     sensor_msgs::Joy                msg_control;
     geometry_msgs::Vector3Stamped msg_tether;

@@ -62,7 +62,10 @@ void Simulator::simulate() {
     state = m_odeSolver->solve(state, control_cmds, dt);
 
     DM control_dummy;
-    DM dyn_params = DM::vertcat({1.2, 0.1});
+    double vW_N{0}, vW_E{0};
+    discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
+    DM dyn_params = DM::vertcat({vW_N, vW_E});
+
     /* Get pitot airspeed */
     Va_pitot = m_NumericVa_pitot(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
@@ -87,6 +90,8 @@ void Simulator::simulate() {
     /* Get specific nongravitational force before solving (altering) the state */
     DM debug_evaluated = m_NumericDebug(DMVector{state, control_cmds, dyn_params})[0];
     std::vector<double> debug_evaluated_vect = debug_evaluated.nonzeros();
+
+    sim_time += sim_dt;
 }
 
 void Simulator::publish_state(const ros::Time &sim_time) {
@@ -246,6 +251,11 @@ int main(int argc, char **argv) {
     simulator.setNumericSpecNongravForce(kiteDynamics.getNumericOutput("spec_nongrav_force", true));
     simulator.setNumericSpecTethForce(kiteDynamics.getNumericOutput("spec_tether_force", true));
     simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX", true));
+    simulator.wind_from_mean = windFrom_deg * M_PI / 180.0;
+    simulator.wind_speed_mean = windSpeed;
+    simulator.sim_dt = dt;
+
+    simulator.discreteTurbulenceGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
 
     ros::Rate loop_rate(node_rate);
 
