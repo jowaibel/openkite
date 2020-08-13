@@ -35,7 +35,8 @@ public:
     void setNumericSpecTethForce(const casadi::Function &_NumericSpecTethForce) {m_NumericSpecTethForce = _NumericSpecTethForce;}
     void setNumericDebug(const casadi::Function &_NumericDebug) {m_NumericDebug = _NumericDebug;}
 
-
+    double vW_N{0};
+    double vW_E{0};
     bool sim_tether;
 
 private:

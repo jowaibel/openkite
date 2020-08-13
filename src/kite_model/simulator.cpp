@@ -59,10 +59,11 @@ void Simulator::simulate() {
     if (static_cast<double>(control_cmds(0)) < 0.0)
         control_cmds(0) = 0.0;
 
-    state = m_odeSolver->solve(state, control_cmds, dt);
+    DM dyn_params = DM::vertcat({vW_N, vW_E});
+
+    state = m_odeSolver->solve(state, control_cmds, dyn_params, dt);
 
     DM control_dummy;
-    DM dyn_params = DM::vertcat({1.2, 0.1});
     /* Get pitot airspeed */
     Va_pitot = m_NumericVa_pitot(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
@@ -72,7 +73,7 @@ void Simulator::simulate() {
     beta = m_NumericBeta(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
     /* Get specific nongravitational force before solving (altering) the state */
-    DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_cmds, dyn_params})[0];
+    DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_dummy, dyn_params})[0];
     std::vector<double> specNongravForce_evaluated_vect = specNongravForce_evaluated.nonzeros();
     specNongravForce = specNongravForce_evaluated_vect;
 
@@ -85,8 +86,10 @@ void Simulator::simulate() {
     }
 
     /* Get specific nongravitational force before solving (altering) the state */
-    DM debug_evaluated = m_NumericDebug(DMVector{state, control_cmds, dyn_params})[0];
+    DM debug_evaluated = m_NumericDebug(DMVector{state, control_dummy, dyn_params})[0];
     std::vector<double> debug_evaluated_vect = debug_evaluated.nonzeros();
+//    std::cout << "debug_evaluated_vect: \n" << debug_evaluated_vect << "\n";
+
 }
 
 void Simulator::publish_state(const ros::Time &sim_time) {
@@ -246,6 +249,9 @@ int main(int argc, char **argv) {
     simulator.setNumericSpecNongravForce(kiteDynamics.getNumericOutput("spec_nongrav_force", true));
     simulator.setNumericSpecTethForce(kiteDynamics.getNumericOutput("spec_tether_force", true));
     simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX", true));
+
+    simulator.vW_N = vWind_N;
+    simulator.vW_E = vWind_E;
 
     ros::Rate loop_rate(node_rate);
 
