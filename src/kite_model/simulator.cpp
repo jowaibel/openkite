@@ -2,14 +2,16 @@
 
 using namespace casadi;
 
-void Simulator::controlCallback(const sensor_msgs::JoyConstPtr &msg) {
+void Simulator::controlCallback(const sensor_msgs::JoyConstPtr &msg)
+{
     control_cmds(0) = msg->axes[0]; // Thrust
     control_cmds(1) = msg->axes[1]; // Elevator
     control_cmds(2) = msg->axes[2]; // Rudder
     control_cmds(3) = msg->axes[3]; // Aileron
 }
 
-Simulator::Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh) {
+Simulator::Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh)
+{
     m_odeSolver = std::make_shared<ODESolver>(odeSolver);
     m_nh = std::make_shared<ros::NodeHandle>(nh);
 
@@ -51,7 +53,8 @@ Simulator::Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh) {
     msg_control.axes.resize(4);
 }
 
-void Simulator::simulate() {
+void Simulator::simulate()
+{
     Dict p = m_odeSolver->getParams();
     double dt = p["tf"];
 
@@ -59,13 +62,13 @@ void Simulator::simulate() {
     if (static_cast<double>(control_cmds(0)) < 0.0)
         control_cmds(0) = 0.0;
 
-    state = m_odeSolver->solve(state, control_cmds, dt);
-
-    DM control_dummy;
     double vW_N{0}, vW_E{0};
     discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
-    DM dyn_params = DM::vertcat({vW_N, vW_E});
 
+    DM dyn_params = DM::vertcat({vW_N, vW_E});
+    state = m_odeSolver->solve(state, control_cmds, dyn_params, dt);
+
+    DM control_dummy;
     /* Get pitot airspeed */
     Va_pitot = m_NumericVa_pitot(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
@@ -75,7 +78,7 @@ void Simulator::simulate() {
     beta = m_NumericBeta(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
     /* Get specific nongravitational force before solving (altering) the state */
-    DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_cmds, dyn_params})[0];
+    DM specNongravForce_evaluated = m_NumericSpecNongravForce(DMVector{state, control_dummy, dyn_params})[0];
     std::vector<double> specNongravForce_evaluated_vect = specNongravForce_evaluated.nonzeros();
     specNongravForce = specNongravForce_evaluated_vect;
 
@@ -88,13 +91,16 @@ void Simulator::simulate() {
     }
 
     /* Get specific nongravitational force before solving (altering) the state */
-    DM debug_evaluated = m_NumericDebug(DMVector{state, control_cmds, dyn_params})[0];
+    DM debug_evaluated = m_NumericDebug(DMVector{state, control_dummy, dyn_params})[0];
     std::vector<double> debug_evaluated_vect = debug_evaluated.nonzeros();
+    //    std::cout << "debug_evaluated_vect: \n" << debug_evaluated_vect << "\n";
 
     sim_time += sim_dt;
+
 }
 
-void Simulator::publish_state(const ros::Time &sim_time) {
+void Simulator::publish_state(const ros::Time &sim_time)
+{
     /** State message */
     std::vector<double> state_vec = state.nonzeros();
 
@@ -152,7 +158,8 @@ void Simulator::publish_state(const ros::Time &sim_time) {
     control_pub.publish(msg_control);
 }
 
-void Simulator::publish_pose(const ros::Time &sim_time) {
+void Simulator::publish_pose(const ros::Time &sim_time)
+{
 
     std::vector<double> pos_vec = state(casadi::Slice(6, 9)).nonzeros();
 
@@ -177,14 +184,15 @@ void Simulator::publish_pose(const ros::Time &sim_time) {
     pose_pub.publish(msg_pose);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "simulator");
     ros::NodeHandle n("~");
 
     /** create a kite object */
     std::string kite_params_file;
     n.param<std::string>("kiteparams", kite_params_file, "kiteparams");
-    if (kite_params_file.at(0) == '/') ; /* Full path given, don't modify */
+    if (kite_params_file.at(0) == '/'); /* Full path given, don't modify */
     else /* Add path to kite_model files */
         kite_params_file = ros::package::getPath("kite_model") + "/config/" + kite_params_file;
     if (kite_params_file.find(".yaml") == std::string::npos) /* Add .yaml ending */
@@ -210,8 +218,8 @@ int main(int argc, char **argv) {
     /** Setup static, dynamic, and optimizable parameters ---------------------------------------------------------- **/
     /* Static parameters: Set {name, value} pair once that will be constant afterwards */
     const std::map<std::string, double> staticParams = {{"air_density", airDensity}};//,
-                                                        //{"v_wind_N",    vWind_N},
-                                                        //{"v_wind_E",    vWind_E}};
+    //{"v_wind_N",    vWind_N},
+    //{"v_wind_E",    vWind_E}};
 
     /* Dynamic parameters: Set parameter names that will be modifiable before running an optimization  */
     const std::vector<std::string> dynParamNames = {"v_wind_N", "v_wind_E"};
@@ -251,16 +259,20 @@ int main(int argc, char **argv) {
     simulator.setNumericSpecNongravForce(kiteDynamics.getNumericOutput("spec_nongrav_force", true));
     simulator.setNumericSpecTethForce(kiteDynamics.getNumericOutput("spec_tether_force", true));
     simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX", true));
-    simulator.wind_from_mean = windFrom_deg * M_PI / 180.0;
-    simulator.wind_speed_mean = windSpeed;
+//    simulator.wind_from_mean = windFrom_deg * M_PI / 180.0;
+//    simulator.wind_speed_mean = windSpeed;
     simulator.sim_dt = dt;
 
+//    simulator.vW_N = vWind_N;
+//    simulator.vW_E = vWind_E;
     simulator.discreteTurbulenceGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
 
     ros::Rate loop_rate(node_rate);
 
-    while (ros::ok()) {
-        if (simulator.is_initialized()) {
+    while (ros::ok())
+    {
+        if (simulator.is_initialized())
+        {
             simulator.simulate();
 
 //            double sim_time_sec = (ros::Time::now() - simulation_time_start).toSec() * sim_speed;
@@ -273,7 +285,8 @@ int main(int argc, char **argv) {
             else
                 simulator.publish_pose(sim_time);
 
-            if (-simulator.getState().nonzeros()[8] < 0) {
+            if (-simulator.getState().nonzeros()[8] < 0)
+            {
                 std::cout << "\n----------------------------------\n"
                              "Hit the ground. End of simulation.\n"
                           << "----------------------------------\n";

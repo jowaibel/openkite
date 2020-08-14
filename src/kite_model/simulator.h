@@ -11,6 +11,23 @@
 #include <sensor_msgs/Joy.h>
 #include <polympc/integration/integrator.h>
 
+class RandomGenerator
+{
+public:
+    RandomGenerator()
+    {
+        distribution = std::uniform_real_distribution<double>(0, 1);
+    }
+
+    double getRand(const double &lower_bound, const double &upper_bound)
+    {
+        return lower_bound + distribution(generator) * (upper_bound - lower_bound);
+    }
+private:
+    std::default_random_engine generator;
+    std::uniform_real_distribution<double> distribution;
+};
+
 class DiscreteTurbulenceGenerator
 {
 public:
@@ -18,32 +35,42 @@ public:
     void init(const double &avg_wind_speed, const double &avg_wind_from)
     {
         V_avg = avg_wind_speed;
-        psiw = avg_wind_from;
-        std::srand(static_cast<unsigned>(time(nullptr)));
+        V0 = V_avg;
+        psiw_avg = avg_wind_from;
+        psiw = psiw_avg;
     }
-    void update(const double &t, const double &height, double &vWind_N, double &vWind_E) {
+    void update(const double &t, const double &height,
+                double &vWind_N, double &vWind_E)
+    {
+        double psiw_error = psiw_avg - psiw;
+        if (psiw_error > M_PI) psiw_error -= 2 * M_PI;
+        if (psiw_error < -M_PI) psiw_error += 2 * M_PI;
 
-        std::cout << "t: " << t << "\n";
-
-        double dpsiw = 0;//(std::rand() % 20 - 10) /10 * M_PI / 180.0;
+        const double dpsiw_max = 0.1;
+        const double dpsiw = randGen.getRand(-dpsiw_max + psiw_error, dpsiw_max + psiw_error) * M_PI / 180.0;
         psiw = psiw + dpsiw;
+        std::cout << "dpsiw: " << dpsiw * 180 / M_PI << " psiw: " << psiw * 180 / M_PI << "\n";
 
-        double V = V0;
-        if (gust_armed)
+        if (gust_isArmed)
         {
-            std::cout << "gust_armed\n";
+            if (gust_gotArmed)
+            {
+                std::cout << "t = " << t_gust << "s. Gust armed\n";
+                gust_gotArmed = false;
+            }
+
             if (t_gust < t and t <= t_gust_end)
             {
                 if (V_gust >= V_avg)
-                    V = V0 + std::abs(V_gust - V_avg) / 2.0 * (1 - cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)));
+                    V = V0 + std::abs(V_gust - V0) / 2.0 * (1 - cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)));
                 else
-                    V = V0 + std::abs(V_gust - V_avg) / 2.0 * (cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)) - 1);
-                std::cout << "V: " << V << "\n";
+                    V = V0 + std::abs(V_gust - V0) / 2.0 * (cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)) - 1);
+//                std::cout << "V: " << V << "\n";
             }
             else if (t > t_gust_end)
             {
-                V0 = V_gust;
-                gust_armed = false;
+                gust_isArmed = false;
+                V0 = V;
             }
         }
         else
@@ -51,18 +78,21 @@ public:
             std::cout << "Determining next gust\n";
             /* If there is no gust, determine next one */
             /* Next gust will be in [0 ... 5] s */
-            t_gust = (std::rand() % 50 + t) / 10;
-            double d_gust = (std::rand() % 50 + 10) / 10;
+            const double t_gust_in = randGen.getRand(0, 1);
+            t_gust = t + t_gust_in;
+            const double d_gust = randGen.getRand(0.5, 1);
             t_gust_end = t_gust + d_gust;
-            double a_gust_max = 1;
-            double dV_gust_max = d_gust * a_gust_max;
-            double dV_gust = std::rand() % static_cast<int>(2 * dV_gust_max * 10) - 10 * dV_gust_max;
-            V_gust = std::max(V0 + dV_gust / 10.0, 0.0);
-            gust_armed = true;
 
-            std::cout << "t_gust: " << t_gust << "\n"
-                      << "d_gust: " << d_gust << "\n"
-                      << "t_gust_end: " << t_gust_end << "\n"
+            const double a_gust_max = 0.3;
+            const double dV_gust_max = d_gust * a_gust_max;
+            const double V_avg_err = V_avg - V0;
+            const double dV_gust = randGen.getRand(-dV_gust_max + V_avg_err, 2 * dV_gust_max + V_avg_err);
+            V_gust = std::max(V0 + dV_gust, 0.0);
+
+            gust_isArmed = true;
+            gust_gotArmed = true;
+
+            std::cout << "t_gust: " << t_gust << " d_gust: " << d_gust << " t_gust_end: " << t_gust_end << "\n"
                       << "dV_gust_max: " << dV_gust_max << "\n"
                       << "dV_gust: " << dV_gust << "\n"
                       << "V_gust: " << V_gust << "\n";
@@ -76,50 +106,61 @@ public:
 //                  << "dpsi: " << dpsiw * 180.0 / M_PI << " deg\n"
 //                  << "psi: " << psiw * 180.0 / M_PI << " deg\n";
         double stophere = 1;
+
     }
 
 private:
-    bool gust_armed{false};
+    bool gust_isArmed{false};
+    bool gust_gotArmed{false};
     double V_avg{1};
-    double V_max{2 * V_avg};
-    double psiw{0};
     double V0{V_avg};
+    double V{V_avg};
+    double psiw_avg{0};
+    double psiw{psiw_avg};
 
-    double V_gust{V_max};
+    double V_gust{V_avg};
     double t_gust{0};
     double t_gust_end{t_gust};
 
+    RandomGenerator randGen{};
 };
 
 class Simulator
 {
 public:
     Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh);
-    virtual ~Simulator(){}
+    virtual ~Simulator() {}
     void simulate();
 
-    casadi::DM getState(){return state;}
-    casadi::DM getPose(){return state(casadi::Slice(6,13));}
+    casadi::DM getState() { return state; }
+    casadi::DM getPose() { return state(casadi::Slice(6, 13)); }
 
     void publish_state(const ros::Time &sim_time);
     void publish_pose(const ros::Time &sim_time);
 
-    bool is_initialized(){return initialized;}
-    void initialize(const casadi::DM &_init_value){state = _init_value; initialized = true;}
+    bool is_initialized() { return initialized; }
+    void initialize(const casadi::DM &_init_value)
+    {
+        state = _init_value;
+        initialized = true;
+    }
 
-    void setNumericVa(const casadi::Function &_NumericVa) {m_NumericVa = _NumericVa;}
-    void setNumericAlpha(const casadi::Function &_NumericAlpha) {m_NumericAlpha = _NumericAlpha;}
-    void setNumericBeta(const casadi::Function &_NumericBeta) {m_NumericBeta = _NumericBeta;}
-    void setNumericVaPitot(const casadi::Function &_NumericVaPitot) {m_NumericVa_pitot = _NumericVaPitot;}
-    void setNumericSpecNongravForce(const casadi::Function &_NumericSpecNongravForce) {m_NumericSpecNongravForce = _NumericSpecNongravForce;}
-    void setNumericSpecTethForce(const casadi::Function &_NumericSpecTethForce) {m_NumericSpecTethForce = _NumericSpecTethForce;}
-    void setNumericDebug(const casadi::Function &_NumericDebug) {m_NumericDebug = _NumericDebug;}
+    void setNumericVa(const casadi::Function &_NumericVa) { m_NumericVa = _NumericVa; }
+    void setNumericAlpha(const casadi::Function &_NumericAlpha) { m_NumericAlpha = _NumericAlpha; }
+    void setNumericBeta(const casadi::Function &_NumericBeta) { m_NumericBeta = _NumericBeta; }
+    void setNumericVaPitot(const casadi::Function &_NumericVaPitot) { m_NumericVa_pitot = _NumericVaPitot; }
+    void setNumericSpecNongravForce(
+            const casadi::Function &_NumericSpecNongravForce) { m_NumericSpecNongravForce = _NumericSpecNongravForce; }
+    void setNumericSpecTethForce(
+            const casadi::Function &_NumericSpecTethForce) { m_NumericSpecTethForce = _NumericSpecTethForce; }
+    void setNumericDebug(const casadi::Function &_NumericDebug) { m_NumericDebug = _NumericDebug; }
 
-
+//    double vW_N{0};
+//    double vW_E{0};
     bool sim_tether;
-    double          wind_from_mean{0};
-    double          wind_speed_mean{0};
-    double          sim_dt;
+//    double wind_from_mean{0};
+//    double wind_speed_mean{0};
+    double sim_dt;
     DiscreteTurbulenceGenerator discreteTurbulenceGenerator;
 
 private:
@@ -134,27 +175,27 @@ private:
     casadi::Function m_NumericDebug;
 
     ros::Subscriber controlcmd_sub;
-    ros::Publisher  state_pub;
-    ros::Publisher  control_pub;
-    ros::Publisher  tether_pub;
-    ros::Publisher  pose_pub;
+    ros::Publisher state_pub;
+    ros::Publisher control_pub;
+    ros::Publisher tether_pub;
+    ros::Publisher pose_pub;
 
-    casadi::DM      control_cmds;
-    casadi::DM      state;
-    double          Va_pitot{0};
-    double          Va{0};
-    double          alpha{0};
-    double          beta{0};
-    std::vector<double> specNongravForce{0,0,0};
-    std::vector<double> specTethForce{0,0,0};
+    casadi::DM control_cmds;
+    casadi::DM state;
+    double Va_pitot{0};
+    double Va{0};
+    double alpha{0};
+    double beta{0};
+    std::vector<double> specNongravForce{0, 0, 0};
+    std::vector<double> specTethForce{0, 0, 0};
 
-    double          sim_time{0};
+    double sim_time{0};
 
     void controlCallback(const sensor_msgs::JoyConstPtr &msg);
     double sim_rate;
 
     sensor_msgs::MultiDOFJointState msg_state;
-    sensor_msgs::Joy                msg_control;
+    sensor_msgs::Joy msg_control;
     geometry_msgs::Vector3Stamped msg_tether;
 
     bool initialized;
