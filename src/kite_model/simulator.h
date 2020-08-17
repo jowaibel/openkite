@@ -29,10 +29,14 @@ private:
     std::uniform_real_distribution<double> distribution;
 };
 
-class DiscreteTurbulenceGenerator
+/* DiscreteGustGenerator is strongly inspired by
+ * Viktor, V. & Valery, I. & Yuri, A. & Shapovalov, Igor & Beloglazov, Denis. (2015). Simulation of wind effect on a
+ * quadrotor flight. 10. 1535-1538.
+ * with some modifications. */
+class DiscreteGustGenerator
 {
 public:
-    DiscreteTurbulenceGenerator() = default;
+    DiscreteGustGenerator() = default;
     void init(const double &avg_wind_speed, const double &avg_wind_from,
               const double &avg_gust_freq = 1.5, const double &max_dpsi = 0.2 * M_PI / 180)
     {
@@ -55,6 +59,8 @@ public:
     void update(const double &t, const double &height,
                 double &vWind_N, double &vWind_E)
     {
+        /* Wind (from) direction */
+        /* Error from mean direction */
         double psiw_error = psiw_avg - psiw;
         if (psiw_error > M_PI) psiw_error -= 2 * M_PI;
         if (psiw_error < -M_PI) psiw_error += 2 * M_PI;
@@ -62,6 +68,7 @@ public:
         const double dpsiw = randGen.getRand(-dpsiw_max + psiw_error, dpsiw_max + psiw_error);
         psiw = psiw + dpsiw;
 
+        /* Wind speed */
         if (gust_isArmed)
         {
             if (gust_gotArmed) { gust_gotArmed = false; }
@@ -84,15 +91,15 @@ public:
         {
             /* If there is no gust, determine next one */
 //            std::cout << "Determining next gust\n";
-            const double t_gust_in = randGen.getRand(0, 2.0 * 1.0 / mean_gust_freq);
+            const double t_gust_in = randGen.getRand(0, 2.0 / mean_gust_freq);
             t_gust = t + t_gust_in;
-            const double d_gust = randGen.getRand(0, 2.0 * 1.0 / mean_gust_freq);
+            const double d_gust = randGen.getRand(0, 2.0 / mean_gust_freq);
             t_gust_end = t_gust + d_gust;
 
             const double a_gust_max = 2.0; // Max. gust acceleration
             const double V_gust_max = 1.5 * V_avg;
             const double V_gust_min = 0.5 * V_avg;
-            const double V_avg_err = V_avg - V0;
+            const double V_avg_err = V_avg - V0; // Error from mean speed
 
             const double dV_gust_max = std::min(d_gust * a_gust_max + V_avg_err, V_gust_max - V0);
             const double dV_gust_min = std::max(d_gust * -a_gust_max + V_avg_err, V_gust_min - V0);
@@ -108,6 +115,8 @@ public:
 //                      << "dV_gust: " << dV_gust << "\n"
 //                      << "V_gust: " << V_gust << "\n";
         }
+
+        /* Wind velocity at aircraft height */
         const double V_cz = V * std::pow(height / 3.0, 0.1);
         vWind_N = V_cz * -cos(psiw);
         vWind_E = V_cz * -sin(psiw);
@@ -123,6 +132,8 @@ public:
     }
 
 private:
+    RandomGenerator randGen{};
+
     bool gust_isArmed{false};
     bool gust_gotArmed{false};
 
@@ -145,7 +156,6 @@ private:
 //    double V_avg_val{V_avg};
 //    double psiw_avg_val{psiw_avg};
 
-    RandomGenerator randGen{};
 };
 
 class Simulator
@@ -178,15 +188,19 @@ public:
             const casadi::Function &_NumericSpecTethForce) { m_NumericSpecTethForce = _NumericSpecTethForce; }
     void setNumericDebug(const casadi::Function &_NumericDebug) { m_NumericDebug = _NumericDebug; }
 
-    double vW_N{0};
-    double vW_E{0};
     bool sim_tether;
     bool sim_turbulence;
-//    double wind_from_mean{0};
-//    double wind_speed_mean{0};
+    double Vw_N{0};
+    double Vw_E{0};
+
+    //    /* Long term mean values (for validation) */
+    unsigned avg_it{1};
+    double Vw_N_mean{Vw_N};
+    double Vw_E_mean{Vw_E};
+
     double sim_dt;
-    DiscreteTurbulenceGenerator discreteTurbulenceGenerator;
-    dryden_model::DrydenWind drydenWind;
+    DiscreteGustGenerator discreteGustGenerator;
+//    dryden_model::DrydenWind drydenWind;
 
 private:
     std::shared_ptr<ros::NodeHandle> m_nh;

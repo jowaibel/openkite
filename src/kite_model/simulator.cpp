@@ -63,10 +63,28 @@ void Simulator::simulate()
         control_cmds(0) = 0.0;
 
     /* Update wind */
+    Eigen::Vector3d wind_velocity{};
     if (sim_turbulence)
-        discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
+    {
+        discreteGustGenerator.update(sim_time, -state(8).nonzeros()[0], Vw_N, Vw_E);
+//        wind_velocity = drydenWind.getWind(sim_dt);
+//        Vw_N = wind_velocity(0);
+//        Vw_E = wind_velocity(1);
+//        std::cout << "wind_vel: " << wind_velocity << "\n";
 
-    DM dyn_params = DM::vertcat({vW_N, vW_E});
+        { /* Statistic mean values for validation */
+            Vw_N_mean = (Vw_N_mean * (avg_it - 1) + Vw_N) / avg_it;
+            Vw_E_mean = (Vw_E_mean * (avg_it - 1) + Vw_E) / avg_it;
+            avg_it++;
+
+//            double windSpeed_val = sqrt(Vw_N_mean * Vw_N_mean + Vw_E_mean * Vw_E_mean);
+//            std::cout << "Vw_N: " << Vw_N << " Vw_E: " << Vw_E
+//                      << " Vw_N_mean: " << Vw_N_mean << " Vw_E_mean: " << Vw_E_mean
+//                      << "  magnitude_mean: " << windSpeed_val << "\n";
+        }
+    }
+
+    DM dyn_params = DM::vertcat({Vw_N, Vw_E});
     state = m_odeSolver->solve(state, control_cmds, dyn_params, dt);
 
     DM control_dummy;
@@ -147,8 +165,8 @@ void Simulator::publish_state(const ros::Time &sim_time)
     msg_state.twist[1].angular.x = Va_pitot;
 
     /* Wind velocity vector */
-    msg_state.twist[1].angular.y = vW_N;
-    msg_state.twist[1].angular.z = vW_E;
+    msg_state.twist[1].angular.y = Vw_N;
+    msg_state.twist[1].angular.z = Vw_E;
 
     state_pub.publish(msg_state);
 
@@ -264,15 +282,14 @@ int main(int argc, char **argv)
     simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX", true));
     simulator.sim_dt = dt;
 
-    simulator.vW_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
-    simulator.vW_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
+    simulator.Vw_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
+    simulator.Vw_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
     if (simulate_turbulence)
     {
         std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s (turbulence ON).\n";
         simulator.sim_turbulence = true;
-        simulator.discreteTurbulenceGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
-
-        simulator.drydenWind.initialize(10, 0.1, -0.7, 12, 1, 2);
+        simulator.discreteGustGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
+//        simulator.drydenWind.initialize(simulator.Vw_N, simulator.Vw_E, 0, 0.5 * windSpeed, 0.5 * windSpeed, 0);
     }
     else
     {
