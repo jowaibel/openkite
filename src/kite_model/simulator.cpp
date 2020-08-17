@@ -63,7 +63,8 @@ void Simulator::simulate()
         control_cmds(0) = 0.0;
 
     /* Update wind */
-    discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
+    if (sim_turbulence)
+        discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
 
     DM dyn_params = DM::vertcat({vW_N, vW_E});
     state = m_odeSolver->solve(state, control_cmds, dyn_params, dt);
@@ -209,9 +210,8 @@ int main(int argc, char **argv)
     n.param<double>("windSpeed", windSpeed, 0.0);
     const double airDensity = 1.1589; // Standard atmosphere at 468 meters
 
-    std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s.\n";
-    //const double vWind_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
-    //const double vWind_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
+    bool simulate_turbulence{false};
+    n.param<bool>("simulate_turbulence", simulate_turbulence, true);
 
     bool simulate_tether;
     n.param<bool>("simulate_tether", simulate_tether, false);
@@ -262,13 +262,20 @@ int main(int argc, char **argv)
     simulator.setNumericSpecNongravForce(kiteDynamics.getNumericOutput("spec_nongrav_force", true));
     simulator.setNumericSpecTethForce(kiteDynamics.getNumericOutput("spec_tether_force", true));
     simulator.setNumericDebug(kiteDynamics.getNumericOutput("debugSX", true));
-//    simulator.wind_from_mean = windFrom_deg * M_PI / 180.0;
-//    simulator.wind_speed_mean = windSpeed;
     simulator.sim_dt = dt;
 
-//    simulator.vW_N = vWind_N;
-//    simulator.vW_E = vWind_E;
-    simulator.discreteTurbulenceGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
+    simulator.vW_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
+    simulator.vW_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
+    if (simulate_turbulence)
+    {
+        std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s (turbulence ON).\n";
+        simulator.sim_turbulence = true;
+        simulator.discreteTurbulenceGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
+    }
+    else
+    {
+        std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s (turbulence OFF).\n";
+    }
 
     ros::Rate loop_rate(node_rate);
 

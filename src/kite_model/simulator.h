@@ -180,6 +180,7 @@ public:
     double vW_N{0};
     double vW_E{0};
     bool sim_tether;
+    bool sim_turbulence;
 //    double wind_from_mean{0};
 //    double wind_speed_mean{0};
     double sim_dt;
