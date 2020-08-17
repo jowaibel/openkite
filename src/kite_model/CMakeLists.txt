@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(kite_model)
 
+if (NOT TARGET wind-dynamics)
+    include_directories(wind-dynamics/include)
+    add_subdirectory(wind-dynamics)
+endif()
 
 include_directories(include ${CASADI_INCLUDE_DIR} src/kite_math)
 

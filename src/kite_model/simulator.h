@@ -10,6 +10,7 @@
 #include "openkite/aircraft_controls.h"
 #include <sensor_msgs/Joy.h>
 #include <polympc/integration/integrator.h>
+#include "wind-dynamics/dryden_model.h"
 
 class RandomGenerator
 {
@@ -185,6 +186,7 @@ public:
 //    double wind_speed_mean{0};
     double sim_dt;
     DiscreteTurbulenceGenerator discreteTurbulenceGenerator;
+    dryden_model::DrydenWind drydenWind;
 
 private:
     std::shared_ptr<ros::NodeHandle> m_nh;
