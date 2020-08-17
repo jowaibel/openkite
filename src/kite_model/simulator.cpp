@@ -62,7 +62,7 @@ void Simulator::simulate()
     if (static_cast<double>(control_cmds(0)) < 0.0)
         control_cmds(0) = 0.0;
 
-    double vW_N{0}, vW_E{0};
+    /* Update wind */
     discreteTurbulenceGenerator.update(sim_time, -state(8).nonzeros()[0], vW_N, vW_E);
 
     DM dyn_params = DM::vertcat({vW_N, vW_E});
@@ -145,6 +145,10 @@ void Simulator::publish_state(const ros::Time &sim_time)
     msg_state.twist[1].linear.z = alpha;
     msg_state.twist[1].angular.x = Va_pitot;
 
+    /* Wind velocity vector */
+    msg_state.twist[1].angular.y = vW_N;
+    msg_state.twist[1].angular.z = vW_E;
+
     state_pub.publish(msg_state);
 
     /** Controls message **/
@@ -160,7 +164,6 @@ void Simulator::publish_state(const ros::Time &sim_time)
 
 void Simulator::publish_pose(const ros::Time &sim_time)
 {
-
     std::vector<double> pos_vec = state(casadi::Slice(6, 9)).nonzeros();
 
     std::vector<double> quat_vec = state(casadi::Slice(9, 13)).nonzeros(); // state contains quaternion
@@ -207,8 +210,8 @@ int main(int argc, char **argv)
     const double airDensity = 1.1589; // Standard atmosphere at 468 meters
 
     std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s.\n";
-    const double vWind_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
-    const double vWind_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
+    //const double vWind_N = windSpeed * -cos(windFrom_deg * M_PI / 180.0);
+    //const double vWind_E = windSpeed * -sin(windFrom_deg * M_PI / 180.0);
 
     bool simulate_tether;
     n.param<bool>("simulate_tether", simulate_tether, false);

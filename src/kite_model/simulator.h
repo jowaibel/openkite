@@ -32,13 +32,25 @@ class DiscreteTurbulenceGenerator
 {
 public:
     DiscreteTurbulenceGenerator() = default;
-    void init(const double &avg_wind_speed, const double &avg_wind_from)
+    void init(const double &avg_wind_speed, const double &avg_wind_from,
+              const double &avg_gust_freq = 1.5, const double &max_dpsi = 0.2 * M_PI / 180)
     {
         V_avg = avg_wind_speed;
-        V0 = V_avg;
         psiw_avg = avg_wind_from;
+
+        mean_gust_freq = avg_gust_freq;
+        dpsiw_max = max_dpsi;
+
+        V0 = V_avg;
         psiw = psiw_avg;
+
+//        V_avg_val = V_avg;
+//        psiw_avg_val = psiw_avg;
     }
+
+    double mean_gust_freq{1.5};
+    double dpsiw_max{0.3 * M_PI / 180.0};
+
     void update(const double &t, const double &height,
                 double &vWind_N, double &vWind_E)
     {
@@ -46,81 +58,91 @@ public:
         if (psiw_error > M_PI) psiw_error -= 2 * M_PI;
         if (psiw_error < -M_PI) psiw_error += 2 * M_PI;
 
-        const double dpsiw_max = 0.1;
-        const double dpsiw = randGen.getRand(-dpsiw_max + psiw_error, dpsiw_max + psiw_error) * M_PI / 180.0;
+        const double dpsiw = randGen.getRand(-dpsiw_max + psiw_error, dpsiw_max + psiw_error);
         psiw = psiw + dpsiw;
-        std::cout << "dpsiw: " << dpsiw * 180 / M_PI << " psiw: " << psiw * 180 / M_PI << "\n";
 
         if (gust_isArmed)
         {
-            if (gust_gotArmed)
-            {
-                std::cout << "t = " << t_gust << "s. Gust armed\n";
-                gust_gotArmed = false;
-            }
+            if (gust_gotArmed) { gust_gotArmed = false; }
 
             if (t_gust < t and t <= t_gust_end)
             {
-                if (V_gust >= V_avg)
+                if (V_gust >= V0)
                     V = V0 + std::abs(V_gust - V0) / 2.0 * (1 - cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)));
                 else
                     V = V0 + std::abs(V_gust - V0) / 2.0 * (cos(M_PI * (t - t_gust) / (t_gust_end - t_gust)) - 1);
-//                std::cout << "V: " << V << "\n";
             }
             else if (t > t_gust_end)
             {
                 gust_isArmed = false;
                 V0 = V;
+//                std::cout << "V0 = " << V0 << "\n";
             }
         }
         else
         {
-            std::cout << "Determining next gust\n";
             /* If there is no gust, determine next one */
-            /* Next gust will be in [0 ... 5] s */
-            const double t_gust_in = randGen.getRand(0, 1);
+//            std::cout << "Determining next gust\n";
+            const double t_gust_in = randGen.getRand(0, 2.0 * 1.0 / mean_gust_freq);
             t_gust = t + t_gust_in;
-            const double d_gust = randGen.getRand(0.5, 1);
+            const double d_gust = randGen.getRand(0, 2.0 * 1.0 / mean_gust_freq);
             t_gust_end = t_gust + d_gust;
 
-            const double a_gust_max = 0.3;
-            const double dV_gust_max = d_gust * a_gust_max;
+            const double a_gust_max = 2.0; // Max. gust acceleration
+            const double V_gust_max = 1.5 * V_avg;
+            const double V_gust_min = 0.5 * V_avg;
             const double V_avg_err = V_avg - V0;
-            const double dV_gust = randGen.getRand(-dV_gust_max + V_avg_err, 2 * dV_gust_max + V_avg_err);
+
+            const double dV_gust_max = std::min(d_gust * a_gust_max + V_avg_err, V_gust_max - V0);
+            const double dV_gust_min = std::max(d_gust * -a_gust_max + V_avg_err, V_gust_min - V0);
+            const double dV_gust = randGen.getRand(dV_gust_min, dV_gust_max);
             V_gust = std::max(V0 + dV_gust, 0.0);
 
             gust_isArmed = true;
             gust_gotArmed = true;
 
-            std::cout << "t_gust: " << t_gust << " d_gust: " << d_gust << " t_gust_end: " << t_gust_end << "\n"
-                      << "dV_gust_max: " << dV_gust_max << "\n"
-                      << "dV_gust: " << dV_gust << "\n"
-                      << "V_gust: " << V_gust << "\n";
+//            std::cout << "t_gust: " << t_gust << " d_gust: " << d_gust << " t_gust_end: " << t_gust_end << "\n"
+//                      << "V_avg_err: " << V_avg_err << "\n"
+//                      << "dV_gust_min: " << dV_gust_min << " dV_gust_max: " << dV_gust_max << "\n"
+//                      << "dV_gust: " << dV_gust << "\n"
+//                      << "V_gust: " << V_gust << "\n";
         }
-        double V_cz = V * std::pow(height / 3.0, 0.1);
+        const double V_cz = V * std::pow(height / 3.0, 0.1);
         vWind_N = V_cz * -cos(psiw);
         vWind_E = V_cz * -sin(psiw);
 
-//        std::cout << "V: " << V << "\n"
-//                  << "V_cz: " << V_cz << "\n"
-//                  << "dpsi: " << dpsiw * 180.0 / M_PI << " deg\n"
-//                  << "psi: " << psiw * 180.0 / M_PI << " deg\n";
-        double stophere = 1;
-
+//        { /* Statistic mean values for validation */
+//            V_avg_val = (V_avg_val * (avg_it - 1) + V_cz) / avg_it;
+//            psiw_avg_val = (psiw_avg_val * (avg_it - 1) + psiw) / avg_it;
+//            avg_it++;
+//            std::cout << "V_cz: " << V_cz << " psiw: " << psiw
+//                      << " V_avg_val: " << V_avg_val << " "
+//                      << "psiw_avg_val: " << psiw_avg_val << "\n";
+//        }
     }
 
 private:
     bool gust_isArmed{false};
     bool gust_gotArmed{false};
+
+    /* Average wind speed and orientation */
     double V_avg{1};
+    double psiw_avg{0};
+
+    /* Base wind speed V0, gust transition speed V, orientation psiw */
     double V0{V_avg};
     double V{V_avg};
-    double psiw_avg{0};
     double psiw{psiw_avg};
 
-    double V_gust{V_avg};
+    /* Times of arrival and end of next gust t_gust, t_gust_end, target wind speed of gust V_gust */
     double t_gust{0};
     double t_gust_end{t_gust};
+    double V_gust{V_avg};
+
+//    /* Long term average values (for validation) */
+//    unsigned avg_it{1};
+//    double V_avg_val{V_avg};
+//    double psiw_avg_val{psiw_avg};
 
     RandomGenerator randGen{};
 };
@@ -155,8 +177,8 @@ public:
             const casadi::Function &_NumericSpecTethForce) { m_NumericSpecTethForce = _NumericSpecTethForce; }
     void setNumericDebug(const casadi::Function &_NumericDebug) { m_NumericDebug = _NumericDebug; }
 
-//    double vW_N{0};
-//    double vW_E{0};
+    double vW_N{0};
+    double vW_E{0};
     bool sim_tether;
 //    double wind_from_mean{0};
 //    double wind_speed_mean{0};
