@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(kite_model)
 
+if (NOT TARGET wind-dynamics)
+    include_directories(wind-dynamics/include)
+    add_subdirectory(wind-dynamics)
+endif()
 
 include_directories(include ${CASADI_INCLUDE_DIR} src/kite_math)
 
@@ -14,7 +18,7 @@ add_executable(kite_model_test kite_model_test.cpp)
 target_link_libraries(kite_model_test odesolver kitemodel ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
 
 add_executable(simulator simulator.cpp simulator.h)
-target_link_libraries(simulator kite_model integration ${catkin_LIBRARIES})
+target_link_libraries(simulator kite_model integration ${catkin_LIBRARIES} wind-dynamics utils)
 
 add_dependencies(simulator openkite_generate_messages_cpp)
 
