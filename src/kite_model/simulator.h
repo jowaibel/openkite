@@ -65,7 +65,7 @@ public:
         if (psiw_error > M_PI) psiw_error -= 2 * M_PI;
         if (psiw_error < -M_PI) psiw_error += 2 * M_PI;
 
-        const double dpsiw = randGen.getRand(-dpsiw_max + psiw_error, dpsiw_max + psiw_error);
+        const double dpsiw = randGen.getRand(-dpsiw_max + 0 * psiw_error, dpsiw_max + 0 * psiw_error);
         psiw = psiw + dpsiw;
 
         /* Wind speed */
@@ -97,8 +97,8 @@ public:
             t_gust_end = t_gust + d_gust;
 
             const double a_gust_max = 2.0; // Max. gust acceleration
-            const double V_gust_max = 1.5 * V_avg;
-            const double V_gust_min = 0.5 * V_avg;
+            const double V_gust_max = 1.3 * V_avg;
+            const double V_gust_min = 0.7 * V_avg;
             const double V_avg_err = V_avg - V0; // Error from mean speed
 
             const double dV_gust_max = std::min(d_gust * a_gust_max + V_avg_err, V_gust_max - V0);

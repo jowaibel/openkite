@@ -288,7 +288,7 @@ int main(int argc, char **argv)
     {
         std::cout << "Simulator: Wind from " << windFrom_deg << " deg at " << windSpeed << " m/s (turbulence ON).\n";
         simulator.sim_turbulence = true;
-        simulator.discreteGustGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0);
+        simulator.discreteGustGenerator.init(windSpeed, windFrom_deg * M_PI / 180.0, 2, 0.2 * M_PI / 180);
 //        simulator.drydenWind.initialize(simulator.Vw_N, simulator.Vw_E, 0, 0.5 * windSpeed, 0.5 * windSpeed, 0);
     }
     else
