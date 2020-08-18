@@ -1,0 +1,3 @@
+[submodule "src/kite_model/wind-dynamics"]
+	path = src/kite_model/wind-dynamics
+	url = https://github.com/goromal/wind-dynamics.git
