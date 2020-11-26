@@ -6,6 +6,7 @@
 #include <ros/package.h>
 #include "sensor_msgs/MultiDOFJointState.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/TwistStamped.h"
 #include "geometry_msgs/Vector3Stamped.h"
 #include "openkite/aircraft_controls.h"
 #include <sensor_msgs/Joy.h>
@@ -218,6 +219,9 @@ private:
     ros::Publisher control_pub;
     ros::Publisher tether_pub;
     ros::Publisher pose_pub;
+    ros::Publisher pose_px_pub;
+    ros::Publisher twist_px_pub;
+    ros::Publisher local_vel_px_pub;
 
     casadi::DM control_cmds;
     casadi::DM state;

@@ -44,6 +44,12 @@ Simulator::Simulator(const ODESolver &odeSolver, const ros::NodeHandle &nh)
 
     controlcmd_sub = m_nh->subscribe("/sim/set/kite_controls", 100, &Simulator::controlCallback, this);
 
+    /** UNCOMMENT THIS FOR TESTING ONLY **/
+    /* Additional publisher to simulate pixhawk (mavros) topics */
+//    pose_px_pub = m_nh->advertise<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 1);
+//    twist_px_pub = m_nh->advertise<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_body", 1);
+//    local_vel_px_pub = m_nh->advertise<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 1);
+
     msg_state.twist.resize(2);
     msg_state.transforms.resize(1);
     msg_state.wrench.resize(2);
@@ -163,7 +169,6 @@ void Simulator::publish_state(const ros::Time &sim_time)
     msg_state.twist[1].linear.y = beta;
     msg_state.twist[1].linear.z = alpha;
     msg_state.twist[1].angular.x = Va_pitot;
-
     /* Wind velocity vector */
     msg_state.twist[1].angular.y = Vw_N;
     msg_state.twist[1].angular.z = Vw_E;
@@ -179,6 +184,56 @@ void Simulator::publish_state(const ros::Time &sim_time)
     msg_control.axes[3] = state_vec[16]; // Aileron
 
     control_pub.publish(msg_control);
+
+    /** UNCOMMENT THIS FOR TESTING ONLY **/
+    /** Pixhawk/Mavros Pose messsage **/
+//    geometry_msgs::PoseStamped msg_pose{};
+//    msg_pose.header.stamp = sim_time;
+//
+//    /* Position in ENU frame */
+//    msg_pose.pose.position.x = state_vec[7]; // Y+
+//    msg_pose.pose.position.y = state_vec[6]; // X+
+//    msg_pose.pose.position.z = -state_vec[8]; // Z-
+//
+//    /* Rotation from Front-Left-Up body frame to ENU frame */
+//    DM q_nb = state(casadi::Slice(9, 13));
+//    DM q_enu_ned = DM::vertcat({0, -sqrt(2) / 2.0, -sqrt(2) / 2.0, 0});
+//    DM q_b_flu = DM::vertcat({0, -1, 0, 0});
+//
+//    DM q_enu_flu = polymath::quat_multiply(q_enu_ned, polymath::quat_multiply(q_nb, q_b_flu));
+//    std::vector<double> q_enu_flu_vec = q_enu_flu.nonzeros();
+//
+//    msg_pose.pose.orientation.w = q_enu_flu_vec[0];
+//    msg_pose.pose.orientation.x = q_enu_flu_vec[1];
+//    msg_pose.pose.orientation.y = q_enu_flu_vec[2];
+//    msg_pose.pose.orientation.z = q_enu_flu_vec[3];
+//
+//    pose_px_pub.publish(msg_pose);
+//
+//    geometry_msgs::TwistStamped msg_twist{};
+//    msg_twist.header.stamp = sim_time;
+//    /* Linear and angular velocity in Front-Left-Up body frame */
+//    msg_twist.twist.linear.x = state_vec[0];
+//    msg_twist.twist.linear.y = -state_vec[1];
+//    msg_twist.twist.linear.z = -state_vec[2];
+//    msg_twist.twist.angular.x = state_vec[3];
+//    msg_twist.twist.angular.y = -state_vec[4];
+//    msg_twist.twist.angular.z = -state_vec[5];
+//    twist_px_pub.publish(msg_twist);
+//
+//    msg_twist.header.stamp = sim_time;
+//
+//    DM v_body = state(casadi::Slice(0, 3));
+//    DM v_ned = polymath::quat_transform(q_nb, v_body);
+//    std::vector<double> v_ned_vec = v_ned.nonzeros();
+//    /* Local velocity in ENU frame */
+//    msg_twist.twist.linear.x = v_ned_vec[1];
+//    msg_twist.twist.linear.y = v_ned_vec[0];
+//    msg_twist.twist.linear.z = -v_ned_vec[2];
+//    msg_twist.twist.angular.x = 0;
+//    msg_twist.twist.angular.y = 0;
+//    msg_twist.twist.angular.z = 0;
+//    local_vel_px_pub.publish(msg_twist);
 }
 
 void Simulator::publish_pose(const ros::Time &sim_time)
