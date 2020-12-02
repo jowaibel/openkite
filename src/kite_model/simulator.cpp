@@ -65,8 +65,7 @@ void Simulator::simulate()
     double dt = p["tf"];
 
     /* Make sure thrust is not negative */
-    if (static_cast<double>(control_cmds(0)) < 0.0)
-        control_cmds(0) = 0.0;
+    if (static_cast<double>(control_cmds(0)) < 0.0) control_cmds(0) = 0.0;
 
     /* Update wind */
     Eigen::Vector3d wind_velocity{};
@@ -178,10 +177,10 @@ void Simulator::publish_state(const ros::Time &sim_time)
     /** Controls message **/
     msg_control.header.stamp = sim_time;
 
-    msg_control.axes[0] = state_vec[13]; // Thrust
-    msg_control.axes[1] = state_vec[14]; // Elevator
-    msg_control.axes[2] = state_vec[15]; // Rudder
-    msg_control.axes[3] = state_vec[16]; // Aileron
+    msg_control.axes[0] = (std::abs(state_vec[13]) < 0.001 ? 0.0 : state_vec[13]); // Thrust
+    msg_control.axes[1] = (std::abs(state_vec[14]) < 0.001 ? 0.0 : state_vec[14]); // Elevator
+    msg_control.axes[2] = (std::abs(state_vec[15]) < 0.001 ? 0.0 : state_vec[15]);; // Rudder
+    msg_control.axes[3] = (std::abs(state_vec[16]) < 0.001 ? 0.0 : state_vec[16]);; // Aileron
 
     control_pub.publish(msg_control);
 
