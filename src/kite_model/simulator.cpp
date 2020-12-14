@@ -75,13 +75,13 @@ void Simulator::simulate()
 //        wind_velocity = drydenWind.getWind(sim_dt);
 //        Vw_N = wind_velocity(0);
 //        Vw_E = wind_velocity(1);
-//        std::cout << "wind_vel: " << wind_velocity << "\n";
 
-        { /* Statistic mean values for validation */
-            Vw_N_mean = (Vw_N_mean * (avg_it - 1) + Vw_N) / avg_it;
-            Vw_E_mean = (Vw_E_mean * (avg_it - 1) + Vw_E) / avg_it;
-            avg_it++;
-
+        {
+//        /* Statistic mean values for validation */
+//            Vw_N_mean = (Vw_N_mean * (avg_it - 1) + Vw_N) / avg_it;
+//            Vw_E_mean = (Vw_E_mean * (avg_it - 1) + Vw_E) / avg_it;
+//            avg_it++;
+//
 //            double windSpeed_val = sqrt(Vw_N_mean * Vw_N_mean + Vw_E_mean * Vw_E_mean);
 //            std::cout << "Vw_N: " << Vw_N << " Vw_E: " << Vw_E
 //                      << " Vw_N_mean: " << Vw_N_mean << " Vw_E_mean: " << Vw_E_mean
@@ -93,6 +93,9 @@ void Simulator::simulate()
     state = m_odeSolver->solve(state, control_cmds, dyn_params, dt);
 
     DM control_dummy;
+    /* Get thrust */
+    thrust = m_NumericThrust(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
+
     /* Get pitot airspeed */
     Va_pitot = m_NumericVa_pitot(DMVector{state, control_dummy, dyn_params})[0].nonzeros()[0];
 
@@ -177,7 +180,8 @@ void Simulator::publish_state(const ros::Time &sim_time)
     /** Controls message **/
     msg_control.header.stamp = sim_time;
 
-    msg_control.axes[0] = (std::abs(state_vec[13]) < 0.001 ? 0.0 : state_vec[13]); // Thrust
+//    msg_control.axes[0] = (std::abs(state_vec[13]) < 0.001 ? 0.0 : state_vec[13]); // Thrust
+    msg_control.axes[0] = (std::abs(thrust) < 0.001 ? 0.0 : thrust); // Thrust
     msg_control.axes[1] = (std::abs(state_vec[14]) < 0.001 ? 0.0 : state_vec[14]); // Elevator
     msg_control.axes[2] = (std::abs(state_vec[15]) < 0.001 ? 0.0 : state_vec[15]);; // Rudder
     msg_control.axes[3] = (std::abs(state_vec[16]) < 0.001 ? 0.0 : state_vec[16]);; // Aileron
@@ -327,6 +331,7 @@ int main(int argc, char **argv)
 
     Simulator simulator(odeSolver, n);
     simulator.sim_tether = simulate_tether;
+    simulator.setNumericThrust(kiteDynamics.getNumericOutput("thrust", true));
     simulator.setNumericVa(kiteDynamics.getNumericOutput("Va", true));
     simulator.setNumericAlpha(kiteDynamics.getNumericOutput("alpha", true));
     simulator.setNumericBeta(kiteDynamics.getNumericOutput("beta", true));

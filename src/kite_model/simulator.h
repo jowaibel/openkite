@@ -179,6 +179,7 @@ public:
         initialized = true;
     }
 
+    void setNumericThrust(const casadi::Function &_NumericThrust) { m_NumericThrust = _NumericThrust; }
     void setNumericVa(const casadi::Function &_NumericVa) { m_NumericVa = _NumericVa; }
     void setNumericAlpha(const casadi::Function &_NumericAlpha) { m_NumericAlpha = _NumericAlpha; }
     void setNumericBeta(const casadi::Function &_NumericBeta) { m_NumericBeta = _NumericBeta; }
@@ -206,6 +207,7 @@ public:
 private:
     std::shared_ptr<ros::NodeHandle> m_nh;
     std::shared_ptr<ODESolver> m_odeSolver;
+    casadi::Function m_NumericThrust;
     casadi::Function m_NumericVa;
     casadi::Function m_NumericAlpha;
     casadi::Function m_NumericBeta;
@@ -225,6 +227,7 @@ private:
 
     casadi::DM control_cmds;
     casadi::DM state;
+    double thrust{0};
     double Va_pitot{0};
     double Va{0};
     double alpha{0};
